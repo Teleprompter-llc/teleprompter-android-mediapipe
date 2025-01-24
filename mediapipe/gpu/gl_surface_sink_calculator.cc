@@ -177,7 +177,7 @@ absl::Status GlSurfaceSinkCalculator::Process(CalculatorContext* cc) {
         renderer_->GlRender(src.width(), src.height(), dst_width, dst_height,
                             scale_mode_, mediapipe::FrameRotation::kNone,
                             /*flip_horizontal=*/false, /*flip_vertical=*/false,
-                            /*flip_texture=*/surface_holder_->flip_y));
+                            /*flip_texture=*/surface_holder_->flip_y, false, 1200.0));
 
     glBindTexture(src.target(), 0);
 

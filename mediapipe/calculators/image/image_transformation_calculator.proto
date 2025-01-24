@@ -66,4 +66,9 @@ message ImageTransformationCalculatorOptions {
 
   // Mode DEFAULT will use LINEAR interpolation.
   optional InterpolationMode interpolation_mode = 9;
+
+  // Blur size parameter for applying Gaussian blur to the image.
+  // A value of 0.0 means no blur is applied.
+  optional float blur_size = 10 [default = 120.0];
+
 }

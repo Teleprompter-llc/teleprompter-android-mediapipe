@@ -1,0 +1,36 @@
+  # Input streams for the foreground image and background image
+  input_stream: "input_video"
+  input_stream: "background_image_cpu"
+  output_stream: "output_video"
+
+  # Flow control
+  node {
+    calculator: "FlowLimiterCalculator"
+    input_stream: "input_video"
+    input_stream: "FINISHED:output_video"
+    input_stream_info: { tag_index: "FINISHED" back_edge: true }
+    output_stream: "throttled_input_video"
+  }
+
+   # Add a conversion node
+  node {
+    calculator: "ImageFrameToGpuBufferCalculator"
+    input_stream: "background_image_cpu"
+    output_stream: "background_image"
+  }
+
+  # Generate segmentation mask
+  node {
+    calculator: "SelfieSegmentationGpu"
+    input_stream: "IMAGE:throttled_input_video"
+    output_stream: "SEGMENTATION_MASK:segmentation_mask"
+  }
+
+  # Combine input with background using the mask
+  node {
+    calculator: "MaskOverlayCalculator"
+    input_stream: "VIDEO:0:background_image" # Background (shown where mask is 0)
+    input_stream: "VIDEO:1:throttled_input_video" # Foreground (shown where mask is 1)
+    input_stream: "MASK:segmentation_mask"
+    output_stream: "OUTPUT:output_video"
+  }
