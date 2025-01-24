@@ -1,3 +1,88 @@
+# Summary
+
+To implement background blur, I've edited the selfie segmentation graph:
+mediapipe/graphs/selfie_segmentation/selfie_segmentation_gpu.pbtxt
+
+and BUILD file:
+mediapipe/graphs/selfie_segmentation/BUILD
+
+and used them in the transformer project to build the aar:
+mediapipe/java/com/google/mediapipe/transformer/BUILD
+mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu.pbtxt
+
+
+# How to build
+
+Building the demo app with [MediaPipe][] integration enabled requires some extra
+manual steps.
+
+1.  Follow the
+    [instructions](https://google.github.io/mediapipe/getting_started/install.html)
+    to install MediaPipe.
+1.  Do not forget to add your sdk and ndk path to the WORKSPACE files
+1.  Copy the Transformer demo's build configuration and MediaPipe graph text
+    protocol buffer under the MediaPipe source tree. This makes it easy to
+    [build an AAR][] with bazel by reusing MediaPipe's workspace.
+
+    ```sh
+    cd "<path to teleprompter-android-MediaPipe checkout>"
+    MEDIAPIPE_ROOT="$(pwd)"
+    MEDIAPIPE_TRANSFORMER_ROOT="${MEDIAPIPE_ROOT}/mediapipe/java/com/google/mediapipe/transformer"
+    cd "<path to the transformer demo (/teleprompter-android-media/demos/transformer/)>"
+    TRANSFORMER_DEMO_ROOT="$(pwd)"
+    mkdir -p "${TRANSFORMER_DEMO_ROOT}/libs"
+    ```
+
+1.  Build the AAR and the binary proto for the demo's MediaPipe graph, then copy
+    them to Transformer.
+
+    ```sh
+    cd ${MEDIAPIPE_ROOT}
+    bazel build -c opt --strip=ALWAYS \
+      --host_crosstool_top=@bazel_tools//tools/cpp:toolchain \
+      --fat_apk_cpu=arm64-v8a,armeabi-v7a \
+      --legacy_whole_archive=0 \
+      --features=-legacy_whole_archive \
+      --copt=-fvisibility=hidden \
+      --copt=-ffunction-sections \
+      --copt=-fdata-sections \
+      --copt=-fstack-protector \
+      --copt=-Oz \
+      --copt=-fomit-frame-pointer \
+      --copt=-DABSL_MIN_LOG_LEVEL=2 \
+      --linkopt=-Wl,--gc-sections,--strip-all \
+      mediapipe/java/com/google/mediapipe/transformer:selfie_segmentation_gpu_aar.aar
+    cp bazel-bin/mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu_aar.aar \
+      ${TRANSFORMER_DEMO_ROOT}/libs
+    bazel build mediapipe/java/com/google/mediapipe/transformer:selfie_segmentation_gpu_binary_graph
+    cp bazel-bin/mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu_binary_graph.binarypb \
+      ${TRANSFORMER_DEMO_ROOT}/src/withMediaPipe/assets
+    ```
+
+    Also don't forget to put selfie_segmentation.tflite to ${TRANSFORMER_DEMO_ROOT}/src/withMediaPipe/assets
+    libc++_shared.so must be added to the project at jniLibs/arm64-v8a/libc++_shared.so path.
+
+    Also add this:
+    ```
+  ndk {
+            // Specify the ABI configurations you want to build
+            abiFilters 'arm64-v8a'
+        }
+    ```
+    to the app's defaultConfig
+
+1.  In Android Studio, gradle sync and select the `withMediaPipe` build variant
+    (this will only appear if the AAR is present), then build and run the demo
+    app and select a MediaPipe-based effect.
+
+[Transformer]: https://developer.android.com/media/media3/transformer
+[MediaPipe]: https://google.github.io/mediapipe/
+[build an AAR]: https://google.github.io/mediapipe/getting_started/android_archive_library.html
+
+
+
+
+
 ---
 layout: forward
 target: https://developers.google.com/mediapipe
