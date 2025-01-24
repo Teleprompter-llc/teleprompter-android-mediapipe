@@ -14,6 +14,53 @@
 
 #include "mediapipe/gpu/gl_quad_renderer.h"
 
+static const GLchar* kTexturedFragmentShaderWithBlur = R"(
+#ifdef GL_ES
+precision mediump float;
+#endif
+uniform sampler2D video_frame;
+uniform bool should_blur;
+varying vec2 sample_coordinate;
+
+void main() {
+  if (should_blur) {
+    float blurSize = 1.0 / 300.0;//1200-soft, 600-medium, 300-hard
+    vec4 sum = vec4(0.0);
+    float totalWeight = 0.0;
+    
+    // Sample in concentric circles rather than a grid
+    int numRings = 8;      // Number of circular rings
+    int samplesPerRing = 16;  // Samples per ring
+    
+    // Center pixel
+    float centerWeight = 1.0;
+    sum += texture2D(video_frame, sample_coordinate) * centerWeight;
+    totalWeight += centerWeight;
+    
+    // Sample in concentric rings
+    for(int ring = 1; ring <= numRings; ring++) {
+        float radius = float(ring) * blurSize;
+        float angleStep = 6.28318530718 / float(samplesPerRing); // 2*PI / samples
+        
+        for(int i = 0; i < samplesPerRing; i++) {
+            float angle = float(i) * angleStep;
+            vec2 offset = vec2(cos(angle), sin(angle)) * radius;
+            
+            float distance = length(offset);
+            float weight = exp(-distance * distance * 3.0);
+            
+            sum += texture2D(video_frame, sample_coordinate + offset) * weight;
+            totalWeight += weight;
+        }
+    }
+    
+    gl_FragColor = sum / totalWeight;
+  } else {
+    gl_FragColor = texture2D(video_frame, sample_coordinate);
+  }
+}
+)";
+
 #include "mediapipe/framework/port/ret_check.h"
 #include "mediapipe/gpu/gl_simple_shaders.h"
 #include "mediapipe/gpu/shader_util.h"
@@ -55,7 +102,7 @@ FrameRotation FrameRotationFromDegrees(int degrees_ccw) {
 }
 
 absl::Status QuadRenderer::GlSetup() {
-  return GlSetup(kBasicTexturedFragmentShader, {"video_frame"});
+  return GlSetup(kTexturedFragmentShaderWithBlur, {"video_frame"});
 }
 
 absl::Status QuadRenderer::GlSetup(
@@ -83,6 +130,9 @@ absl::Status QuadRenderer::GlSetup(
   }
   scale_unif_ = glGetUniformLocation(program_, "scale");
   RET_CHECK(scale_unif_ != -1) << "could not find uniform 'scale'";
+  
+  should_blur_unif_ = glGetUniformLocation(program_, "should_blur");
+  RET_CHECK(should_blur_unif_ != -1) << "could not find uniform 'should_blur'";
 
   glGenVertexArrays(1, &vao_);
   glGenBuffers(2, vbo_);
@@ -123,13 +173,14 @@ absl::Status QuadRenderer::GlRender(float frame_width, float frame_height,
                                     FrameScaleMode scale_mode,
                                     FrameRotation rotation,
                                     bool flip_horizontal, bool flip_vertical,
-                                    bool flip_texture) const {
+                                    bool flip_texture, bool should_blur) const {
   RET_CHECK(program_) << "Must setup the program before rendering.";
 
   glUseProgram(program_);
   for (int i = 0; i < frame_unifs_.size(); ++i) {
     glUniform1i(frame_unifs_[i], i + 1);
   }
+  glUniform1i(should_blur_unif_, should_blur ? 1 : 0);
 
   // Determine scale parameter.
   if (rotation == FrameRotation::k90 || rotation == FrameRotation::k270) {

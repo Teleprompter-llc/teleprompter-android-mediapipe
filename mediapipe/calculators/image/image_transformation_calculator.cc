@@ -677,7 +677,7 @@ absl::Status ImageTransformationCalculator::RenderGpu(CalculatorContext* cc) {
   MP_RETURN_IF_ERROR(renderer->GlRender(
       src1.width(), src1.height(), dst.width(), dst.height(), scale_mode,
       rotation, flip_horizontally_, flip_vertically_,
-      /*flip_texture=*/false));
+      /*flip_texture=*/false, true));
 
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(src1.target(), 0);

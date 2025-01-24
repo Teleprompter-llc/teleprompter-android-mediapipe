@@ -1,0 +1,25 @@
+load("//mediapipe/java/com/google/mediapipe:mediapipe_aar.bzl", "mediapipe_aar")
+load(
+    "//mediapipe/framework/tool:mediapipe_graph.bzl",
+    "mediapipe_binary_graph",
+)
+
+mediapipe_binary_graph(
+    name = "selfie_segmentation_gpu_binary_graph",
+    graph = "selfie_segmentation_gpu.pbtxt",
+    output_name = "selfie_segmentation_gpu.binarypb",
+    deps = ["//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",],
+)
+
+
+mediapipe_aar(
+    name = "selfie_segmentation_gpu_aar",
+    calculators = [
+          "//mediapipe/calculators/core:flow_limiter_calculator",
+        "//mediapipe/calculators/core:packet_cloner_calculator",
+        "//mediapipe/calculators/image:recolor_calculator",
+        "//mediapipe/calculators/image:image_transformation_calculator",
+        "//mediapipe/calculators/image:mask_overlay_calculator",
+        "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",
+    ],
+)
