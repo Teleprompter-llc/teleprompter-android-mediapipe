@@ -25,7 +25,10 @@ cc_library(
     name = "selfie_segmentation_gpu_deps",
     deps = [
         "//mediapipe/calculators/core:flow_limiter_calculator",
+        "//mediapipe/calculators/core:packet_cloner_calculator",
         "//mediapipe/calculators/image:recolor_calculator",
+        "//mediapipe/calculators/image:image_transformation_calculator",
+        "//mediapipe/calculators/image:mask_overlay_calculator",
         "//mediapipe/modules/selfie_segmentation:selfie_segmentation_gpu",
     ],
 )
@@ -35,20 +38,4 @@ mediapipe_binary_graph(
     graph = "selfie_segmentation_gpu.pbtxt",
     output_name = "selfie_segmentation_gpu.binarypb",
     deps = [":selfie_segmentation_gpu_deps"],
-)
-
-cc_library(
-    name = "selfie_segmentation_cpu_deps",
-    deps = [
-        "//mediapipe/calculators/core:flow_limiter_calculator",
-        "//mediapipe/calculators/image:recolor_calculator",
-        "//mediapipe/modules/selfie_segmentation:selfie_segmentation_cpu",
-    ],
-)
-
-mediapipe_binary_graph(
-    name = "selfie_segmentation_cpu_binary_graph",
-    graph = "selfie_segmentation_cpu.pbtxt",
-    output_name = "selfie_segmentation_cpu.binarypb",
-    deps = [":selfie_segmentation_cpu_deps"],
 )
