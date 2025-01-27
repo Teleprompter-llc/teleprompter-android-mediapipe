@@ -1,0 +1,53 @@
+input_stream: "input_video"
+
+
+output_stream: "output_video"
+
+node {
+  calculator: "FlowLimiterCalculator"
+  input_stream: "input_video"
+  input_stream: "FINISHED:output_video"
+  input_stream_info: {
+    tag_index: "FINISHED"
+    back_edge: true
+  }
+  output_stream: "throttled_input_video"
+}
+
+ node {
+   calculator: "PacketClonerCalculator"
+   input_stream: "TICK:throttled_input_video"
+   input_stream: "input_video"
+   output_stream: "throttled_background_video"
+  # # Try using this setting also:
+  # input_stream_handler {
+  #   input_stream_handler: "ImmediateInputStreamHandler"
+  # }
+ }
+
+node {
+ calculator: "ImageTransformationCalculator"
+ input_stream: "IMAGE_GPU:throttled_background_video"
+ output_stream: "IMAGE_GPU:scaled_background_video"
+ node_options: {
+    [type.googleapis.com/mediapipe.ImageTransformationCalculatorOptions] {
+      flip_horizontally: false
+      flip_vertically: false
+      blur_size: 1200.0
+    }
+  }
+}
+
+node {
+  calculator: "SelfieSegmentationGpu"
+  input_stream: "IMAGE:throttled_input_video"
+  output_stream: "SEGMENTATION_MASK:segmentation_mask"
+}
+
+node {
+  calculator: "MaskOverlayCalculator"
+  input_stream: "VIDEO:0:scaled_background_video"
+  input_stream: "VIDEO:1:throttled_input_video"
+  input_stream: "MASK:segmentation_mask"
+  output_stream: "OUTPUT:output_video"
+}

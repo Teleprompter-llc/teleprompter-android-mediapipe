@@ -20,11 +20,12 @@ precision mediump float;
 #endif
 uniform sampler2D video_frame;
 uniform bool should_blur;
+uniform float blur_size;
 varying vec2 sample_coordinate;
 
 void main() {
   if (should_blur) {
-    float blurSize = 1.0 / 300.0;//1200-soft, 600-medium, 300-hard
+    float blurSize = 1.0 / blur_size;
     vec4 sum = vec4(0.0);
     float totalWeight = 0.0;
     
@@ -133,6 +134,9 @@ absl::Status QuadRenderer::GlSetup(
   
   should_blur_unif_ = glGetUniformLocation(program_, "should_blur");
   RET_CHECK(should_blur_unif_ != -1) << "could not find uniform 'should_blur'";
+  
+  blur_size_unif_ = glGetUniformLocation(program_, "blur_size");
+  RET_CHECK(blur_size_unif_ != -1) << "could not find uniform 'blur_size'";
 
   glGenVertexArrays(1, &vao_);
   glGenBuffers(2, vbo_);
@@ -173,7 +177,7 @@ absl::Status QuadRenderer::GlRender(float frame_width, float frame_height,
                                     FrameScaleMode scale_mode,
                                     FrameRotation rotation,
                                     bool flip_horizontal, bool flip_vertical,
-                                    bool flip_texture, bool should_blur) const {
+                                    bool flip_texture, bool should_blur, float blur_size) const {
   RET_CHECK(program_) << "Must setup the program before rendering.";
 
   glUseProgram(program_);
@@ -181,6 +185,7 @@ absl::Status QuadRenderer::GlRender(float frame_width, float frame_height,
     glUniform1i(frame_unifs_[i], i + 1);
   }
   glUniform1i(should_blur_unif_, should_blur ? 1 : 0);
+  glUniform1f(blur_size_unif_, blur_size);
 
   // Determine scale parameter.
   if (rotation == FrameRotation::k90 || rotation == FrameRotation::k270) {

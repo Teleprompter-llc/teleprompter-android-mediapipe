@@ -207,6 +207,7 @@ class ImageTransformationCalculator : public CalculatorBase {
   mediapipe::ScaleMode_Mode scale_mode_;
   bool flip_horizontally_ = false;
   bool flip_vertically_ = false;
+  float blur_size_ = 1200.0;  // Default value
 
   bool use_gpu_ = false;
   cv::Scalar padding_color_;
@@ -340,6 +341,13 @@ absl::Status ImageTransformationCalculator::Open(CalculatorContext* cc) {
         cc->InputSidePackets().Tag("FLIP_VERTICALLY").Get<bool>();
   } else {
     flip_vertically_ = options_.flip_vertically();
+  }
+
+   if (cc->InputSidePackets().HasTag("BLUR_SIZE")) {
+    blur_size_ =
+        cc->InputSidePackets().Tag("BLUR_SIZE").Get<bool>();
+  } else {
+    blur_size_ = options_.blur_size();
   }
 
   scale_mode_ = ParseScaleMode(options_.scale_mode(), DEFAULT_SCALE_MODE);
@@ -677,7 +685,7 @@ absl::Status ImageTransformationCalculator::RenderGpu(CalculatorContext* cc) {
   MP_RETURN_IF_ERROR(renderer->GlRender(
       src1.width(), src1.height(), dst.width(), dst.height(), scale_mode,
       rotation, flip_horizontally_, flip_vertically_,
-      /*flip_texture=*/false, true));
+      /*flip_texture=*/false, true, blur_size_));
 
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(src1.target(), 0);
