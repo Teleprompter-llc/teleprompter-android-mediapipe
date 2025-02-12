@@ -55,7 +55,7 @@ manual steps.
     cp bazel-bin/mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu_aar.aar \
       ${TRANSFORMER_DEMO_ROOT}/libs
     bazel build mediapipe/java/com/google/mediapipe/transformer:selfie_segmentation_gpu_binary_graph
-    cp bazel-bin/mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu_binary_graph.binarypb \
+    cp bazel-bin/mediapipe/java/com/google/mediapipe/transformer/selfie_segmentation_gpu.binarypb \
       ${TRANSFORMER_DEMO_ROOT}/src/withMediaPipe/assets
     ```
 
