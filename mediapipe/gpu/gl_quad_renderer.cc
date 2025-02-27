@@ -45,7 +45,7 @@ void main() {
         
         for(int i = 0; i < samplesPerRing; i++) {
             float angle = float(i) * angleStep;
-            vec2 offset = vec2(cos(angle), sin(angle)) * radius;
+            vec2 offset = vec2(cos(angle), -sin(angle)) * radius;  // Negate y component to match image coordinate system
             
             float distance = length(offset);
             float weight = exp(-distance * distance * 3.0);

@@ -345,7 +345,7 @@ absl::Status ImageTransformationCalculator::Open(CalculatorContext* cc) {
 
    if (cc->InputSidePackets().HasTag("BLUR_SIZE")) {
     blur_size_ =
-        cc->InputSidePackets().Tag("BLUR_SIZE").Get<bool>();
+        cc->InputSidePackets().Tag("BLUR_SIZE").Get<float>();
   } else {
     blur_size_ = options_.blur_size();
   }
@@ -682,10 +682,12 @@ absl::Status ImageTransformationCalculator::RenderGpu(CalculatorContext* cc) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   }
 
+  bool apply_blur = (blur_size_ > 0.0);
+
   MP_RETURN_IF_ERROR(renderer->GlRender(
       src1.width(), src1.height(), dst.width(), dst.height(), scale_mode,
       rotation, flip_horizontally_, flip_vertically_,
-      /*flip_texture=*/false, true, blur_size_));
+      /*flip_texture=*/false, apply_blur, blur_size_));
 
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(src1.target(), 0);
