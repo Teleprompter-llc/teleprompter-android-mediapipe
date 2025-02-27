@@ -38,6 +38,7 @@ manual steps.
 
     ```sh
     cd ${MEDIAPIPE_ROOT}
+    export HERMETIC_PYTHON_VERSION=3.11
     bazel build -c opt --strip=ALWAYS \
       --host_crosstool_top=@bazel_tools//tools/cpp:toolchain \
       --fat_apk_cpu=arm64-v8a,armeabi-v7a \
