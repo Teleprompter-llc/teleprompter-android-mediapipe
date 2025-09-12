@@ -5,6 +5,13 @@ load(
 )
 
 mediapipe_binary_graph(
+    name = "selfie_segmentation_bg_img_gpu_binary_graph",
+    graph = "selfie_segmentation_bg_img_gpu.pbtxt",
+    output_name = "selfie_segmentation_bg_img_gpu.binarypb",
+    deps = ["//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",],
+)
+
+mediapipe_binary_graph(
     name = "selfie_segmentation_gpu_binary_graph",
     graph = "selfie_segmentation_gpu.pbtxt",
     output_name = "selfie_segmentation_gpu.binarypb",
@@ -41,6 +48,7 @@ mediapipe_aar(
         "//mediapipe/calculators/image:recolor_calculator",
         "//mediapipe/calculators/image:image_transformation_calculator",
         "//mediapipe/calculators/image:mask_overlay_calculator",
+        "//mediapipe/gpu:image_frame_to_gpu_buffer_calculator",
         "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",
     ],
 )

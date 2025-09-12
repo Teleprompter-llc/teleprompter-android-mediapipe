@@ -6,3 +6,5 @@ node_modules/
 .configure.bazelrc
 .user.bazelrc
 .aider*
+.vscode/settings.json
+mediapipe/java/com/google/mediapipe/.DS_Store
