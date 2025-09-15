@@ -830,5 +830,5 @@ http_archive(
 )
 
 android_sdk_repository(name = "androidsdk", path = "/Users/csabahuszar/Library/Android/sdk")
-android_ndk_repository(name = "androidndk", api_level=21, path = "/Users/csabahuszar/Library/Android/sdk/ndk/28.0.12916984")
+android_ndk_repository(name = "androidndk", api_level=21, path = "/Users/csabahuszar/Library/Android/sdk/ndk/28.2.13676358")
 bind(name = "android/crosstool", actual = "@androidndk//:toolchain")
