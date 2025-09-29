@@ -17,12 +17,11 @@ load(
     "@org_tensorflow//tensorflow/lite:special_rules.bzl",
     "tflite_ios_lab_runner",
 )
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load(
     "//mediapipe/framework/tool:ios.bzl",
     "MPP_TASK_MINIMUM_OS_VERSION",
 )
-
-package(default_visibility = ["//mediapipe/tasks:internal"])
 
 licenses(["notice"])
 
@@ -44,7 +43,8 @@ objc_library(
     srcs = ["MPPImageEmbedderTests.mm"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
         "-x objective-c++",
     ],
     data = [

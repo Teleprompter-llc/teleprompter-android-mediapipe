@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Placeholder: load py_test
 # Placeholder for internal Python strict test compatibility macro.
 
 package(default_visibility = ["//mediapipe/tasks:internal"])
@@ -116,13 +117,13 @@ py_test(
     tags = ["not_run:arm"],
     deps = [
         "//mediapipe/framework/formats:detection_py_pb2",
-        "//mediapipe/python:_framework_bindings",
         "//mediapipe/tasks/python/components/containers:bounding_box",
         "//mediapipe/tasks/python/components/containers:category",
         "//mediapipe/tasks/python/components/containers:detections",
         "//mediapipe/tasks/python/core:base_options",
         "//mediapipe/tasks/python/test:test_utils",
         "//mediapipe/tasks/python/vision:face_detector",
+        "//mediapipe/tasks/python/vision/core:image",
         "//mediapipe/tasks/python/vision/core:image_processing_options",
         "//mediapipe/tasks/python/vision/core:vision_task_running_mode",
         "@com_google_protobuf//:protobuf_python",
@@ -142,13 +143,13 @@ py_test(
     deps = [
         "//mediapipe/framework/formats:classification_py_pb2",
         "//mediapipe/framework/formats:landmark_py_pb2",
-        "//mediapipe/python:_framework_bindings",
         "//mediapipe/tasks/python/components/containers:category",
         "//mediapipe/tasks/python/components/containers:landmark",
         "//mediapipe/tasks/python/components/containers:rect",
         "//mediapipe/tasks/python/core:base_options",
         "//mediapipe/tasks/python/test:test_utils",
         "//mediapipe/tasks/python/vision:face_landmarker",
+        "//mediapipe/tasks/python/vision/core:image",
         "//mediapipe/tasks/python/vision/core:image_processing_options",
         "//mediapipe/tasks/python/vision/core:vision_task_running_mode",
         "@com_google_protobuf//:protobuf_python",
@@ -233,44 +234,15 @@ py_test(
 )
 
 py_test(
-    name = "face_aligner_test",
-    srcs = ["face_aligner_test.py"],
+    name = "image_test",
+    srcs = ["image_test.py"],
     data = [
         "//mediapipe/tasks/testdata/vision:test_images",
-        "//mediapipe/tasks/testdata/vision:test_models",
-    ],
-    tags = [
-        "noasan",  # TODO: Re-enable once the bug is fixed.
-        "not_run:arm",
     ],
     deps = [
-        "//mediapipe/python:_framework_bindings",
-        "//mediapipe/tasks/python/components/containers:rect",
-        "//mediapipe/tasks/python/core:base_options",
         "//mediapipe/tasks/python/test:test_utils",
-        "//mediapipe/tasks/python/vision:face_aligner",
-        "//mediapipe/tasks/python/vision/core:image_processing_options",
+        "//mediapipe/tasks/python/vision/core:image",
         "@mediapipe_pip_deps_absl_py//:pkg",
-    ],
-)
-
-py_test(
-    name = "face_stylizer_test",
-    srcs = ["face_stylizer_test.py"],
-    data = [
-        "//mediapipe/tasks/testdata/vision:test_images",
-        "//mediapipe/tasks/testdata/vision:test_models",
-    ],
-    tags = [
-        "noasan",  # TODO: Re-enable once the bug is fixed.
-    ],
-    deps = [
-        "//mediapipe/python:_framework_bindings",
-        "//mediapipe/tasks/python/components/containers:rect",
-        "//mediapipe/tasks/python/core:base_options",
-        "//mediapipe/tasks/python/test:test_utils",
-        "//mediapipe/tasks/python/vision:face_stylizer",
-        "//mediapipe/tasks/python/vision/core:image_processing_options",
-        "@mediapipe_pip_deps_absl_py//:pkg",
+        "@mediapipe_pip_deps_numpy//:pkg",
     ],
 )

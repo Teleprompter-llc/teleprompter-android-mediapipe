@@ -18,6 +18,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -28,12 +29,12 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "mediapipe/tasks/cc/genai/inference/utils/xnn_utils/xnn_tensor.h"
-#include "xnnpack.h"  // from @XNNPACK
+#include "pthreadpool.h"  // from @pthreadpool
+#include "xnnpack.h"      // from @XNNPACK
 
 namespace mediapipe::tasks::genai {
 namespace xnn_utils {
@@ -90,9 +91,6 @@ struct RuntimeConfigs {
     kFP16
   } activation_precision = ActivationPrecision::kFP32;
 };
-
-absl::StatusOr<std::shared_ptr<XnnWeightsCache>> CreateWeightsCache(
-    size_t buffer_size = /*XNN_DEFAULT_WEIGHTS_BUFFER_SIZE=*/1048576);
 
 class XnnGraph;
 
@@ -154,7 +152,10 @@ class XnnGraphBuilder {
   absl::StatusOr<std::shared_ptr<Tensor>> CapTanh(std::shared_ptr<Tensor> input,
                                                   float cap);
 
-  // Average over last dimension, keep num of dims same.
+  // Reduction over last dimension, keep num of dims same.
+  absl::StatusOr<std::shared_ptr<Tensor>> ReduceLastDim(
+      std::shared_ptr<Tensor> input, xnn_reduce_operator reduce_operator);
+
   absl::StatusOr<std::shared_ptr<Tensor>> AvgLastDim(
       std::shared_ptr<Tensor> input);
 
@@ -210,7 +211,7 @@ class XnnGraphBuilder {
   }
 
   absl::StatusOr<std::shared_ptr<Tensor>> BatchMatMul(
-      std::shared_ptr<Tensor> input, std::shared_ptr<Tensor> weight,
+      std::shared_ptr<Tensor> lhs, std::shared_ptr<Tensor> rhs,
       FullConnParams params = FullConnParams());
 
   absl::StatusOr<std::shared_ptr<Tensor>> FullConn(

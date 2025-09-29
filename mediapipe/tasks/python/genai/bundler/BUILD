@@ -15,6 +15,8 @@
 # Placeholder for internal Python strict library and test compatibility macro.
 # Placeholder for internal Python strict test compatibility macro.
 
+package(default_visibility = ["//third_party/py/ai_edge_torch/google/model_conversion:__subpackages__"])
+
 py_library(
     name = "llm_bundler",
     srcs = ["llm_bundler.py"],
@@ -28,7 +30,6 @@ py_library(
 py_test(
     name = "llm_bundler_test",
     srcs = ["llm_bundler_test.py"],
-    srcs_version = "PY3",
     deps = [
         ":llm_bundler",
         "@com_google_sentencepiece//:sentencepiece_model_py_pb2",

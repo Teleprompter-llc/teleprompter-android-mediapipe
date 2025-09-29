@@ -27,7 +27,6 @@ import MediaPipeTasksGenAIC
 /// the main thread.
 @objc(MPPLLMInference) public final class LlmInference: NSObject {
   private static let numberOfDecodeStepsPerSync = 3
-  private static let sequenceBatchSize = 0
   private static let responseGenerationInProgressQueueName =
     "com.google.mediapipe.genai.isResponseGenerationInProgressQueue"
 
@@ -57,28 +56,45 @@ import MediaPipeTasksGenAIC
   @objc public init(options: Options) throws {
     let cacheDirectory = FileManager.default.temporaryDirectory.path
 
-    let sequenceBatchSize = LlmInference.sequenceBatchSize
+    var preferredBackend = kLlmPreferredBackendDefault
+    switch options.preferredBackend {
+    case .defaultBackend:
+      preferredBackend = kLlmPreferredBackendDefault
+    case .gpu:
+      preferredBackend = kLlmPreferredBackendGpu
+    case .cpu:
+      preferredBackend = kLlmPreferredBackendCpu
+    }
+
     let numberOfDecodeStepsPerSync = LlmInference.numberOfDecodeStepsPerSync
     let timeBeforeInit = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
     llmTaskRunner = try options.modelPath.withCString { modelPath in
       try cacheDirectory.withCString { cacheDirectory in
         try options.supportedLoraRanks.withUnsafeMutableBufferPointer { supportedLoraRanks in
-          let modelSetting = LlmModelSettings(
-            model_path: modelPath,
-            vision_encoder_path: nil,
-            vision_adapter_path: nil,
-            cache_dir: cacheDirectory,
-            max_num_tokens: options.maxTokens,
-            num_decode_steps_per_sync: numberOfDecodeStepsPerSync,
-            sequence_batch_size: sequenceBatchSize,
-            number_of_supported_lora_ranks: supportedLoraRanks.count,
-            supported_lora_ranks: supportedLoraRanks.baseAddress,
-            max_top_k: options.maxTopk,
-            llm_activation_data_type: kLlmActivationDataTypeDefault,
-            num_draft_tokens: 0,
-            wait_for_weight_uploads: options.waitForWeightUploads,
-            use_submodel: options.useSubmodel)
-          return try LlmTaskRunner(modelSettings: modelSetting)
+          try options.visionEncoderPath.withCString { visionEncoderPath in
+            try options.visionAdapterPath.withCString { visionAdapterPath in
+              let modelSetting = LlmModelSettings(
+                model_path: modelPath,
+                vision_encoder_path: (options.visionEncoderPath.isEmpty ? nil : visionEncoderPath),
+                vision_adapter_path: (options.visionAdapterPath.isEmpty ? nil : visionAdapterPath),
+                cache_dir: cacheDirectory,
+                max_num_tokens: options.maxTokens,
+                max_num_images: options.maxImages,
+                num_decode_steps_per_sync: numberOfDecodeStepsPerSync,
+                sequence_batch_size: options.sequenceBatchSize,
+                number_of_supported_lora_ranks: supportedLoraRanks.count,
+                supported_lora_ranks: supportedLoraRanks.baseAddress,
+                max_top_k: options.maxTopk,
+                llm_activation_data_type: kLlmActivationDataTypeDefault,
+                num_draft_tokens: 0,
+                wait_for_weight_uploads: options.waitForWeightUploads,
+                use_submodel: options.useSubmodel,
+                preferred_backend: preferredBackend,
+                enable_audio_modality: options.enableAudioModality,
+                max_audio_sequence_length: options.maxAudioSequenceLength)
+              return try LlmTaskRunner(modelSettings: modelSetting)
+            }
+          }
         }
       }
     }
@@ -216,6 +232,19 @@ import MediaPipeTasksGenAIC
 
 // Extension to `LlmInference` for defining `LlmInference.Options`
 extension LlmInference {
+
+  /// Specify the LiteRT backend to use for the LLM model. If not specified, the
+  /// default backend will be used. For non-LiteRT models, the backend is specified during the
+  /// conversion process.
+  @objc public enum LlmPreferredBackend: Int32 {
+    /// Use default backend extracted from the model.
+    case defaultBackend = 0
+    /// Use GPU backend.
+    case gpu = 1
+    /// Use CPU backend.
+    case cpu = 2
+  }
+
   /// Options for setting up a `LlmInference`.
   ///
   /// Note: Inherits from `NSObject` for Objective C interoperability.
@@ -223,9 +252,21 @@ extension LlmInference {
     /// The absolute path to the model asset bundle stored locally on the device.
     @objc public var modelPath: String
 
+    /// Path to the vision encoder to use for vision modality. Optional.
+    @objc public var visionEncoderPath: String = ""
+
+    /// Path to the vision adapter to use for vision modality. Optional.
+    @objc public var visionAdapterPath: String = ""
+
+    /// Setting to prefer a specific backend.
+    @objc public var preferredBackend: LlmPreferredBackend = .defaultBackend
+
     /// The total length of the kv-cache. In other words, this is the total number of input + output
     /// tokens the model needs to handle.
     @objc public var maxTokens: Int = 512
+
+    /// Maximum number of images to be used for vision modality.
+    @objc public var maxImages: Int = 0
 
     /// Maximum top k, which is the max Top-K value supported for all sessions created with the
     /// `LlmInference`, used by GPU only. If a session with Top-K value larger than this is being
@@ -243,6 +284,19 @@ extension LlmInference {
 
     /// Whether to use the submodel if available.
     @objc public var useSubmodel: Bool = false
+
+    /// Sequence batch size for encoding. Used by GPU only. Number of input tokens
+    /// to process at a time for batch processing. Setting this value to 1 means
+    /// both the encoding and decoding share the same graph of sequence length
+    /// of 1. Setting this value to 0 means the batch size will be optimized
+    /// programmatically.
+    @objc public var sequenceBatchSize: Int = 0
+
+    /// Maximum audio sequence length in tokens, used by audio modality.
+    @objc public var maxAudioSequenceLength: Int = 0
+
+    /// Whether to enable audio modality.
+    @objc public var enableAudioModality: Bool = false
 
     /// Creates a new instance of `Options` with the given `modelPath` and default values of
     /// `maxTokens`, `maxTopk`, `supportedLoraRanks`.

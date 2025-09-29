@@ -226,8 +226,8 @@ android_library(
     manifest = "AndroidManifest.xml",
     resource_files = glob(["res/**"]),
     deps = [
-        "//third_party:android_constraint_layout",
-        "//third_party:androidx_appcompat",
+        "@maven//:androidx_appcompat_appcompat",
+        "@maven//:androidx_constraintlayout_constraintlayout",
     ],
 )
 

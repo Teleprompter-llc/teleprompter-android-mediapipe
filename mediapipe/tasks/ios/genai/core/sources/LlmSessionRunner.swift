@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import CoreGraphics
 import Foundation
 import MediaPipeTasksGenAIC
 
@@ -19,6 +20,7 @@ import MediaPipeTasksGenAIC
 /// to initialize, execute and terminate any MediaPipe `LlmInference.Session`.
 final class LlmSessionRunner {
   typealias CLlmSession = UnsafeMutableRawPointer
+  typealias CSkBitmap = UnsafeMutableRawPointer
 
   /// The underlying C LLM session managed by this `LlmSessionRunner`.
   private var cLlmSession: CLlmSession?
@@ -48,6 +50,31 @@ final class LlmSessionRunner {
     else {
       throw GenAiInferenceError.failedToAddQueryToSession(
         inputText, String(allocatedCErrorMessage: cErrorMessage))
+    }
+  }
+
+  func addImage(image: CGImage) throws {
+    var cErrorMessage: UnsafeMutablePointer<CChar>? = nil
+    LlmInferenceEngine_Session_AddCgImage(cLlmSession, image, &cErrorMessage)
+  }
+
+  func addAudio(audio: Data) throws {
+    var cErrorMessage: UnsafeMutablePointer<CChar>? = nil
+
+    let statusCode = audio.withUnsafeBytes({ (buffer: UnsafeRawBufferPointer) -> Int32 in
+      let rawPointer = buffer.baseAddress?.assumingMemoryBound(to: CChar.self)
+
+      return LlmInferenceEngine_Session_AddAudio(
+        cLlmSession,
+        rawPointer,
+        Int32(buffer.count),
+        &cErrorMessage
+      )
+    })
+
+    guard statusCode == StatusCode.success.rawValue else {
+      throw GenAiInferenceError.failedToAddAudioToSession(
+        String(allocatedCErrorMessage: cErrorMessage))
     }
   }
 
@@ -100,7 +127,9 @@ final class LlmSessionRunner {
     let callbackInfo = CallbackInfo(progress: progress, completion: completion)
     let callbackContext = UnsafeMutableRawPointer(Unmanaged.passRetained(callbackInfo).toOpaque())
 
-    let errorCode = LlmInferenceEngine_Session_PredictAsync(cLlmSession, callbackContext, &cErrorMessage) {
+    let errorCode = LlmInferenceEngine_Session_PredictAsync(
+      cLlmSession, callbackContext, &cErrorMessage
+    ) {
       context, responseContext in
       guard let cContext = context else {
         return
@@ -146,6 +175,17 @@ final class LlmSessionRunner {
 
     guard errorCode == StatusCode.success.rawValue else {
       throw GenAiInferenceError.failedToPredictAsync(String(allocatedCErrorMessage: cErrorMessage))
+    }
+  }
+
+  /// Signals the C LLM session to cancel the pending asynchronous prediction.
+  /// - Throws: An error if the C LLM session could not be cancelled.
+  func cancelGenerateResponseAsync() throws {
+    var cErrorMessage: UnsafeMutablePointer<CChar>? = nil
+    LlmInferenceEngine_Session_PendingProcessCancellation(cLlmSession, &cErrorMessage)
+    if let cErrorMessage {
+      throw GenAiInferenceError.failedToCancelAsyncPrediction(
+        String(allocatedCErrorMessage: cErrorMessage))
     }
   }
 

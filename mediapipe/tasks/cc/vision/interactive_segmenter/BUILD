@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//mediapipe/tasks:internal"])
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
@@ -22,10 +25,10 @@ cc_library(
     name = "interactive_segmenter",
     srcs = ["interactive_segmenter.cc"],
     hdrs = ["interactive_segmenter.h"],
-    visibility = ["//visibility:public"],
     deps = [
         ":interactive_segmenter_graph",
         "//mediapipe/framework:calculator_cc_proto",
+        "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework/api2:builder",
         "//mediapipe/framework/formats:image",
         "//mediapipe/framework/formats:rect_cc_proto",
@@ -39,6 +42,7 @@ cc_library(
         "//mediapipe/tasks/cc/vision/image_segmenter:image_segmenter_result",
         "//mediapipe/tasks/cc/vision/image_segmenter/proto:image_segmenter_graph_options_cc_proto",
         "//mediapipe/tasks/cc/vision/image_segmenter/proto:segmenter_options_cc_proto",
+        "//mediapipe/tasks/cc/vision/interactive_segmenter/proto:region_of_interest_cc_proto",
         "//mediapipe/util:color_cc_proto",
         "//mediapipe/util:render_data_cc_proto",
         "@com_google_absl//absl/status",
@@ -70,10 +74,12 @@ cc_library(
         "//mediapipe/tasks/cc/vision/image_segmenter:image_segmenter_graph",
         "//mediapipe/tasks/cc/vision/image_segmenter/proto:image_segmenter_graph_options_cc_proto",
         "//mediapipe/tasks/cc/vision/image_segmenter/proto:segmenter_options_cc_proto",
+        "//mediapipe/tasks/cc/vision/interactive_segmenter/proto:region_of_interest_cc_proto",
         "//mediapipe/util:color_cc_proto",
         "//mediapipe/util:graph_builder_utils",
         "//mediapipe/util:label_map_cc_proto",
         "//mediapipe/util:render_data_cc_proto",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ] + select({

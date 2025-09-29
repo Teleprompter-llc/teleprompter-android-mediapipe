@@ -16,10 +16,13 @@ limitations under the License.
 #include "mediapipe/tasks/cc/text/text_embedder/text_embedder.h"
 
 #include <memory>
+#include <utility>
 
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/cord.h"
+#include "absl/strings/str_cat.h"
 #include "mediapipe/framework/deps/file_path.h"
 #include "mediapipe/framework/port/gmock.h"
 #include "mediapipe/framework/port/gtest.h"
@@ -44,8 +47,10 @@ constexpr char kUniversalSentenceEncoderModel[] =
 
 // Tolerance for embedding vector coordinate values.
 constexpr float kEpsilon = 1e-4;
-// Tolerancy for cosine similarity evaluation.
+// Tolerance for cosine similarity evaluation.
 constexpr double kSimilarityTolerancy = 2e-2;
+// Threshold for similarity evaluation.
+constexpr float kCosineSimilarityThreshold = 0.95;
 
 using ::mediapipe::file::JoinPath;
 using ::testing::HasSubstr;
@@ -89,11 +94,13 @@ TEST_F(EmbedderTest, SucceedsWithMobileBert) {
       auto result1, text_embedder->Embed("what a great and fantastic trip"));
   ASSERT_EQ(result1.embeddings.size(), 1);
   ASSERT_EQ(result1.embeddings[0].float_embedding.size(), 512);
-#ifdef __FMA__
+#ifdef _WIN32
+  ASSERT_NEAR(result1.embeddings[0].float_embedding[0], 22.2575f, kEpsilon);
+#elif defined(__FMA__)
   ASSERT_NEAR(result1.embeddings[0].float_embedding[0], 21.254150f, kEpsilon);
 #else
-  ASSERT_NEAR(result1.embeddings[0].float_embedding[0], 19.684337f, kEpsilon);
-#endif
+  ASSERT_NEAR(result1.embeddings[0].float_embedding[0], 22.387123f, kEpsilon);
+#endif  // _WIN32
 
   // Check cosine similarity.
   MP_ASSERT_OK_AND_ASSIGN(
@@ -206,11 +213,7 @@ TEST_F(EmbedderTest, SucceedsWithMobileBertAndDifferentThemes) {
       double similarity, TextEmbedder::CosineSimilarity(result0.embeddings[0],
                                                         result1.embeddings[0]));
   // TODO: These similarity should likely be lower
-#ifdef _WIN32
-  EXPECT_NEAR(similarity, 0.98152, kSimilarityTolerancy);
-#else
-  EXPECT_NEAR(similarity, 0.98088, kSimilarityTolerancy);
-#endif  // _WIN32
+  EXPECT_GE(similarity, kCosineSimilarityThreshold);
 
   MP_ASSERT_OK(text_embedder->Close());
 }

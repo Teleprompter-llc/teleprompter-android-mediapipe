@@ -14,6 +14,10 @@
 #
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("//mediapipe/framework:mediapipe_cc_test.bzl", "mediapipe_cc_test")
 load("//mediapipe/framework/port:build_config.bzl", "mediapipe_proto_library")
 load(
@@ -45,6 +49,7 @@ bzl_library(
         "//mediapipe/framework/deps:descriptor_set_bzl",
         "//mediapipe/framework/deps:expand_template_bzl",
         "@org_tensorflow//tensorflow/lite/core/shims:cc_library_with_tflite_bzl",
+        "@rules_cc//cc:core_rules",
     ],
 )
 
@@ -318,6 +323,7 @@ mediapipe_cc_test(
     # A non-empty "data" param is needed to build the "_test_wasm" target.
     data = [":node_chain_subgraph.proto"],
     requires_full_emulation = False,
+    test_host = None,
     deps = [
         ":node_chain_subgraph_cc_proto",
         ":node_chain_subgraph_options_lib",
@@ -465,6 +471,7 @@ cc_library(
     hdrs = ["status_util.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//mediapipe/framework/deps:no_destructor",
         "//mediapipe/framework/port:status",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:absl_check",
@@ -821,6 +828,19 @@ cc_library(
     ],
 )
 
+mediapipe_cc_test(
+    name = "test_util_test",
+    srcs = ["test_util_test.cc"],
+    tags = ["nodocker"],  # TODO: b/445878970 - Re-enable on docker.
+    deps = [
+        ":test_util",
+        "//mediapipe/framework/formats:image_format_cc_proto",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/port:gtest_main",
+        "@com_google_absl//absl/status",
+    ],
+)
+
 cc_library(
     name = "container_util",
     srcs = ["container_util.cc"],
@@ -864,6 +884,7 @@ mediapipe_cc_test(
     timeout = "long",
     srcs = ["switch_demux_calculator_test.cc"],
     requires_full_emulation = False,
+    test_host = None,
     deps = [
         ":container_util",
         ":switch_demux_calculator",
@@ -901,6 +922,7 @@ mediapipe_cc_test(
     timeout = "long",
     srcs = ["switch_mux_calculator_test.cc"],
     requires_full_emulation = False,
+    test_host = None,
     deps = [
         ":container_util",
         ":switch_mux_calculator",
@@ -988,10 +1010,12 @@ cc_library(
         "//mediapipe/framework:calculator_cc_proto",
         "//mediapipe/framework:graph_runtime_info_cc_proto",
         "//mediapipe/framework:vlog_utils",
+        "//mediapipe/framework/port:file_helpers",
         "//mediapipe/framework/port:logging",
         "//mediapipe/framework/port:ret_check",
         "//mediapipe/framework/port:threadpool",
         "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:absl_check",

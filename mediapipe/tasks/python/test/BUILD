@@ -14,15 +14,12 @@
 
 # Placeholder for internal Python strict library and test compatibility macro.
 
-package(default_visibility = ["//mediapipe/tasks:internal"])
-
 licenses(["notice"])
 
 py_library(
     name = "test_utils",
     testonly = True,
     srcs = ["test_utils.py"],
-    srcs_version = "PY3",
     visibility = [
         "//mediapipe/model_maker/python:__subpackages__",
         "//mediapipe/tasks:internal",

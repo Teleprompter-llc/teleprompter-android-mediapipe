@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
+
 package(default_visibility = ["//mediapipe/tasks:internal"])
 
 licenses(["notice"])
@@ -22,7 +24,8 @@ objc_library(
     hdrs = ["sources/MPPAudioClassifierOptions+Helpers.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         "//mediapipe/framework:calculator_options_cc_proto",
@@ -41,7 +44,8 @@ objc_library(
     hdrs = ["sources/MPPAudioClassifierResult+Helpers.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         "//mediapipe/framework:packet",

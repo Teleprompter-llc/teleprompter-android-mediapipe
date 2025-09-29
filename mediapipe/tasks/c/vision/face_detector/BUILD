@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//mediapipe/tasks:internal"])
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 licenses(["notice"])
 
@@ -23,19 +25,28 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//mediapipe/framework/formats:image",
-        "//mediapipe/framework/formats:image_frame",
         "//mediapipe/tasks/c/components/containers:detection_result",
         "//mediapipe/tasks/c/components/containers:detection_result_converter",
         "//mediapipe/tasks/c/core:base_options",
         "//mediapipe/tasks/c/core:base_options_converter",
         "//mediapipe/tasks/c/vision/core:common",
+        "//mediapipe/tasks/c/vision/core:image",
+        "//mediapipe/tasks/c/vision/core:image_frame_util",
+        "//mediapipe/tasks/c/vision/core:image_processing_options",
+        "//mediapipe/tasks/c/vision/core:image_processing_options_converter",
+        "//mediapipe/tasks/cc/vision/core:image_processing_options",
         "//mediapipe/tasks/cc/vision/core:running_mode",
         "//mediapipe/tasks/cc/vision/face_detector",
-        "//mediapipe/tasks/cc/vision/utils:image_utils",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
+)
+
+cc_library(
+    name = "face_detector_c_lib",
+    visibility = ["//mediapipe/tasks/c:__subpackages__"],
+    deps = [":face_detector_lib"],
     alwayslink = 1,
 )
 
@@ -58,8 +69,10 @@ cc_test(
         "//mediapipe/tasks/c/components/containers:detection_result",
         "//mediapipe/tasks/c/components/containers:keypoint",
         "//mediapipe/tasks/c/components/containers:rect",
+        "//mediapipe/tasks/c/core:mp_status",
         "//mediapipe/tasks/c/vision/core:common",
-        "//mediapipe/tasks/cc/vision/utils:image_utils",
+        "//mediapipe/tasks/c/vision/core:image",
+        "//mediapipe/tasks/c/vision/core:image_processing_options",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",

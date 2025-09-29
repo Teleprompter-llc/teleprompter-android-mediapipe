@@ -36,6 +36,7 @@ swift_library(
     visibility = ["//visibility:private"],
     deps = [
         "//mediapipe/tasks/cc/genai/inference/c:libllm_inference_engine_cpu",
+        "//third_party/apple_frameworks:CoreGraphics",
         "//third_party/apple_frameworks:Foundation",
     ],
 )

@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//mediapipe/framework/port:build_config.bzl", "mediapipe_cc_proto_library", "mediapipe_proto_library")
 # Placeholder: load py_proto_library
 # Placeholder: load proto_library
@@ -820,6 +822,7 @@ cc_library(
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
         "@org_tensorflow//tensorflow/core:framework",
+        "@org_tensorflow//tensorflow/core:protos_all_cc",
     ],
     alwayslink = 1,
 )

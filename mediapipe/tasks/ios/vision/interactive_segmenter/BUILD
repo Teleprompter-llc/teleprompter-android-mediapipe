@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
+
 package(default_visibility = ["//mediapipe/tasks:internal"])
 
 licenses(["notice"])
@@ -43,7 +45,8 @@ objc_library(
     hdrs = ["sources/MPPInteractiveSegmenter.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
         "-x objective-c++",
     ],
     module_name = "MPPInteractiveSegmenter",

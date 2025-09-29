@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//mediapipe/tasks/java/com/google/mediapipe/tasks:mediapipe_tasks_aar.bzl", "mediapipe_tasks_audio_aar")
+load("//mediapipe/tasks/java/com/google/mediapipe/tasks:mediapipe_tasks_aar.bzl", "mediapipe_build_aar_with_jni", "mediapipe_jni_binary")
 
 licenses(["notice"])
 
@@ -34,27 +34,13 @@ android_library(
 )
 
 # The native library of all MediaPipe audio tasks.
-cc_binary(
-    name = "libmediapipe_tasks_audio_jni.so",
-    linkopts = [
-        "-Wl,--no-undefined",
-        "-Wl,--version-script,$(location //mediapipe/tasks/java:version_script.lds)",
-    ],
-    linkshared = 1,
-    linkstatic = 1,
+mediapipe_jni_binary(
+    name = "mediapipe_tasks_audio_jni",
     deps = [
         "//mediapipe/java/com/google/mediapipe/framework/jni:mediapipe_framework_jni",
         "//mediapipe/tasks/cc/audio/audio_classifier:audio_classifier_graph",
-        "//mediapipe/tasks/cc/audio/audio_embedder:audio_embedder_graph",
-        "//mediapipe/tasks/java:version_script.lds",
         "//mediapipe/tasks/java/com/google/mediapipe/tasks/core/jni:model_resources_cache_jni",
     ],
-)
-
-cc_library(
-    name = "libmediapipe_tasks_audio_jni_lib",
-    srcs = [":libmediapipe_tasks_audio_jni.so"],
-    alwayslink = 1,
 )
 
 android_library(
@@ -84,34 +70,26 @@ android_library(
 )
 
 android_library(
-    name = "audioembedder",
-    srcs = [
-        "audioembedder/AudioEmbedder.java",
-        "audioembedder/AudioEmbedderResult.java",
-    ],
-    javacopts = [
-        "-Xep:AndroidJdkLibsChecker:OFF",
-    ],
-    manifest = "audioembedder/AndroidManifest.xml",
+    name = "tasks_audio_aar_library",
+    srcs = glob(["**/*.java"]),
+    manifest = "AndroidManifest.xml",
     deps = [
-        ":core",
+        ":libmediapipe_tasks_audio_jni_lib",
         "//mediapipe/framework:calculator_options_java_proto_lite",
-        "//mediapipe/java/com/google/mediapipe/framework:android_framework",
-        "//mediapipe/tasks/cc/audio/audio_embedder/proto:audio_embedder_graph_options_java_proto_lite",
-        "//mediapipe/tasks/cc/components/containers/proto:embeddings_java_proto_lite",
-        "//mediapipe/tasks/cc/components/processors/proto:embedder_options_java_proto_lite",
+        "//mediapipe/java/com/google/mediapipe/framework:android_framework_no_mff",
+        "//mediapipe/tasks/cc/audio/audio_classifier/proto:audio_classifier_graph_options_java_proto_lite",
+        "//mediapipe/tasks/cc/components/containers/proto:classifications_java_proto_lite",
+        "//mediapipe/tasks/cc/components/processors/proto:classifier_options_java_proto_lite",
         "//mediapipe/tasks/cc/core/proto:base_options_java_proto_lite",
-        "//mediapipe/tasks/java/com/google/mediapipe/tasks/audio:libmediapipe_tasks_audio_jni_lib",
         "//mediapipe/tasks/java/com/google/mediapipe/tasks/components/containers:audiodata",
-        "//mediapipe/tasks/java/com/google/mediapipe/tasks/components/containers:embeddingresult",
-        "//mediapipe/tasks/java/com/google/mediapipe/tasks/core",
+        "//mediapipe/tasks/java/com/google/mediapipe/tasks/components/containers:classificationresult",
+        "//mediapipe/tasks/java/com/google/mediapipe/tasks/core:core_java",
         "//third_party:autovalue",
         "@maven//:com_google_guava_guava",
     ],
 )
 
-mediapipe_tasks_audio_aar(
+mediapipe_build_aar_with_jni(
     name = "tasks_audio",
-    srcs = glob(["**/*.java"]),
-    native_library = ":libmediapipe_tasks_audio_jni_lib",
+    android_library = ":tasks_audio_aar_library",
 )

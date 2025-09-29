@@ -35,6 +35,8 @@ load(
     "@build_bazel_rules_apple//apple/internal:resources.bzl",
     "resources",
 )
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 def _metal_compiler_args(ctx, src, obj, minimum_os_version, copts, diagnostics, deps_dump):
     """Returns arguments for metal compiler."""
@@ -171,7 +173,7 @@ def _metal_library_impl(ctx):
 METAL_LIBRARY_ATTRS = dicts.add(apple_support.action_required_attrs(), {
     "srcs": attr.label_list(allow_files = [".metal"], allow_empty = False),
     "hdrs": attr.label_list(allow_files = [".h"]),
-    "deps": attr.label_list(providers = [["objc", CcInfo], [apple_common.Objc, CcInfo]]),
+    "deps": attr.label_list(providers = [[apple_common.Objc, CcInfo]]),
     "copts": attr.string_list(),
     "minimum_os_version": attr.string(),
 })

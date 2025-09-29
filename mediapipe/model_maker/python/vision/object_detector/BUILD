@@ -17,8 +17,6 @@
 
 licenses(["notice"])
 
-package(default_visibility = ["//mediapipe:__subpackages__"])
-
 py_library(
     name = "object_detector_import",
     srcs = ["__init__.py"],
@@ -37,7 +35,6 @@ py_binary(
     name = "object_detector_demo",
     srcs = ["object_detector_demo.py"],
     data = [":testdata"],
-    python_version = "PY3",
     tags = ["requires-net:external"],
     deps = [
         ":object_detector_import",

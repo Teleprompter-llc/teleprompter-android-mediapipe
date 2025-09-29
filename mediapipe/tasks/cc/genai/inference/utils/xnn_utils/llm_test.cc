@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "absl/flags/flag.h"
-#include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
@@ -59,22 +58,45 @@ ABSL_FLAG(std::string, model_type, "GEMMA_2B",
 
 ABSL_FLAG(int, num_threads, 4, "The number of threads to use");
 
+ABSL_FLAG(std::string, activation_precision, "",
+          "The datatype to use for the activations, i.e. 'fp32' (default) or "
+          "'fp16'.");
+
+namespace {
+static const char* const kXnnProfileCsvFile =
+#if __ANDROID__
+    "/data/local/tmp/xnn_profile.csv";
+#else
+    "/tmp/xnn_profile.csv";
+#endif
+}  // namespace
+
+ABSL_FLAG(
+    std::string, xnn_profile_csv, kXnnProfileCsvFile,
+    "Path at which to dump a CSV file with per-op profiling information.");
+
 namespace mediapipe::tasks::genai::xnn_utils {
 namespace {
 
-constexpr ::absl::string_view kXnnProfileCsvFile{
-#if __ANDROID__
-    "/data/local/tmp/xnn_profile.csv"
-#else
-    "/tmp/xnn_profile.csv"
-#endif
-};
+using ::benchmark::internal::Benchmark;
 
 std::unique_ptr<RuntimeConfigs> GetRunTimeConfigsForBenchmark() {
   auto runtime_config = std::make_unique<RuntimeConfigs>();
   runtime_config->xnn_num_threads = absl::GetFlag(FLAGS_num_threads);
-  runtime_config->xnn_profile = false;
-  runtime_config->xnn_profile_csv = std::string(kXnnProfileCsvFile);
+  runtime_config->xnn_profile = !absl::GetFlag(FLAGS_xnn_profile_csv).empty();
+  runtime_config->xnn_profile_csv = absl::GetFlag(FLAGS_xnn_profile_csv);
+  const std::string activation_precision =
+      absl::GetFlag(FLAGS_activation_precision);
+  if (activation_precision.empty() || activation_precision == "fp32") {
+    runtime_config->activation_precision =
+        RuntimeConfigs::ActivationPrecision::kFP32;
+  } else if (activation_precision == "fp16") {
+    runtime_config->activation_precision =
+        RuntimeConfigs::ActivationPrecision::kFP16;
+  } else {
+    ABSL_LOG(FATAL) << "Unsupported activation_precision: "
+                    << activation_precision;
+  }
   return runtime_config;
 }
 
@@ -86,7 +108,6 @@ GetLlmBuilderAndParamsForBenchmark(size_t seq_size) {
         LlmParams::FromLLMParametersProto(llm_utils::GetFalconRW1BParams());
     params.seq_size_T = seq_size;
     params.enable_kv_cache = true;
-    params.enable_dynamic_shape = true;
     return {std::make_unique<FalconRW1BBuilder>(
                 params, GetRunTimeConfigsForBenchmark()),
             params};
@@ -95,7 +116,22 @@ GetLlmBuilderAndParamsForBenchmark(size_t seq_size) {
         LlmParams::FromLLMParametersProto(llm_utils::GetGemma2BParams());
     params.seq_size_T = seq_size;
     params.enable_kv_cache = true;
-    params.enable_dynamic_shape = true;
+    return {
+        std::make_unique<LlmBuilder>(params, GetRunTimeConfigsForBenchmark()),
+        params};
+  } else if (absl::EqualsIgnoreCase(model_type_string, "GEMMA2_2B")) {
+    LlmParams params =
+        LlmParams::FromLLMParametersProto(llm_utils::GetGemma2_2BParams());
+    params.seq_size_T = seq_size;
+    params.enable_kv_cache = true;
+    return {
+        std::make_unique<LlmBuilder>(params, GetRunTimeConfigsForBenchmark()),
+        params};
+  } else if (absl::EqualsIgnoreCase(model_type_string, "GEMMA3_1B")) {
+    LlmParams params =
+        LlmParams::FromLLMParametersProto(llm_utils::GetGemma3_1BParams());
+    params.seq_size_T = seq_size;
+    params.enable_kv_cache = true;
     return {
         std::make_unique<LlmBuilder>(params, GetRunTimeConfigsForBenchmark()),
         params};
@@ -104,7 +140,6 @@ GetLlmBuilderAndParamsForBenchmark(size_t seq_size) {
         LlmParams::FromLLMParametersProto(llm_utils::GetStablelm4E1T3BParams());
     params.seq_size_T = seq_size;
     params.enable_kv_cache = true;
-    params.enable_dynamic_shape = true;
     return {std::make_unique<Stablelm4E1T3BBuilder>(
                 params, GetRunTimeConfigsForBenchmark()),
             params};
@@ -113,7 +148,6 @@ GetLlmBuilderAndParamsForBenchmark(size_t seq_size) {
         LlmParams::FromLLMParametersProto(llm_utils::GetPhi2Params());
     params.seq_size_T = seq_size;
     params.enable_kv_cache = true;
-    params.enable_dynamic_shape = true;
     return {
         std::make_unique<Phi2Builder>(params, GetRunTimeConfigsForBenchmark()),
         params};
@@ -216,6 +250,12 @@ class BenchmarkLlmMixedInt48WeightsLoader : public LlmWeightsLoader {
   }
 };
 
+static void BenchmarLlmSizes(Benchmark* b) {
+  for (const int& batch_size : {1, 4, 7, 8, 14, 16, 28, 32, 48, 64}) {
+    b->Args({/*sequence_length=*/512, /*prompt_size=*/128, batch_size});
+  }
+}
+
 }  // namespace
 
 // Benchmark LLM model specified by --model_type flag (QC8 weights, all
@@ -224,6 +264,18 @@ void BM_Llm_QCINT8(benchmark::State& state) {
   auto [builder, params] = GetLlmBuilderAndParamsForBenchmark(state.range(0));
   auto weights_loader =
       std::make_unique<BenchmarkLlmWeightsLoader>(params, xnn_datatype_qcint8);
+
+  MP_ASSERT_OK_AND_ASSIGN(
+      auto llm, Llm::CreateLlm(std::move(weights_loader), std::move(builder)));
+  MP_ASSERT_OK(llm->AddInputTokens({{0}}));
+
+  RunBenchmark(*llm, state);
+}
+
+void BM_Llm_QCINT4(benchmark::State& state) {
+  auto [builder, params] = GetLlmBuilderAndParamsForBenchmark(state.range(0));
+  auto weights_loader =
+      std::make_unique<BenchmarkLlmWeightsLoader>(params, xnn_datatype_qcint4);
 
   MP_ASSERT_OK_AND_ASSIGN(
       auto llm, Llm::CreateLlm(std::move(weights_loader), std::move(builder)));
@@ -247,49 +299,8 @@ void BM_Llm_Mixed_INT48(benchmark::State& state) {
 }
 
 // Run benchmark for three different cache sizes: 64, 512, 1024.
-BENCHMARK(BM_Llm_QCINT8)
-    ->UseRealTime()
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/1})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/4})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/7})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/8})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/14})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/16})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/28})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/32})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/48})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/64});
-BENCHMARK(BM_Llm_Mixed_INT48)
-    ->UseRealTime()
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/1})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/4})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/7})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/8})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/14})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/16})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/28})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/32})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/48})
-    ->Args({/*sequence_length=*/512, /*prompt_size=*/128,
-            /*batch_size=*/64});
+BENCHMARK(BM_Llm_QCINT8)->UseRealTime()->Apply(BenchmarLlmSizes);
+BENCHMARK(BM_Llm_QCINT4)->UseRealTime()->Apply(BenchmarLlmSizes);
+BENCHMARK(BM_Llm_Mixed_INT48)->UseRealTime()->Apply(BenchmarLlmSizes);
 
 }  // namespace mediapipe::tasks::genai::xnn_utils

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 package(default_visibility = ["//mediapipe/tasks:internal"])
 
 licenses(["notice"])
@@ -32,6 +36,14 @@ cc_library(
         "//mediapipe/tasks/cc/text/text_embedder",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
+    ],
+)
+
+cc_library(
+    name = "text_embedder_c_lib",
+    visibility = ["//mediapipe/tasks/c:__subpackages__"],
+    deps = [
+        ":text_embedder_lib",
     ],
     alwayslink = 1,
 )

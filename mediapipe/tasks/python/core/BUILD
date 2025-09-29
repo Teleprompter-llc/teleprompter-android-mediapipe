@@ -25,6 +25,17 @@ py_library(
     ],
 )
 
+# Foreign Function Interface (FFI) defintion for the MediaPipe Tasks C API.
+py_library(
+    name = "mediapipe_c_bindings",
+    srcs = [
+        "mediapipe_c_bindings.py",
+    ],
+    data = [
+        "//mediapipe/tasks/c:libmediapipe.so",
+    ],
+)
+
 py_library(
     name = "base_options",
     srcs = ["base_options.py"],
@@ -33,12 +44,18 @@ py_library(
         "//mediapipe/tasks:users",
     ],
     deps = [
+        ":base_options_c",
         ":optional_dependencies",
         "//mediapipe/calculators/tensor:inference_calculator_py_pb2",
         "//mediapipe/tasks/cc/core/proto:acceleration_py_pb2",
         "//mediapipe/tasks/cc/core/proto:base_options_py_pb2",
         "//mediapipe/tasks/cc/core/proto:external_file_py_pb2",
     ],
+)
+
+py_library(
+    name = "base_options_c",
+    srcs = ["base_options_c.py"],
 )
 
 py_library(

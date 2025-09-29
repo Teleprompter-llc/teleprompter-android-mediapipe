@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import CoreGraphics
 import Foundation
 import MediaPipeTasksGenAIC
 
@@ -56,7 +57,9 @@ extension LlmInference {
         random_seed: options.randomSeed,
         lora_path: nil,
         include_token_cost_calculator: true,
-        enable_vision_modality: false)
+        enable_vision_modality: options.enableVisionModality,
+        enable_audio_modality: options.enableAudioModality,
+        prompt_templates: nil)
 
       /// If `loraPath` is != nil, modify session config with the corresponding C string and invoke
       /// the method to create session runner within the scope where the C String of the `loraPath`
@@ -111,6 +114,14 @@ extension LlmInference {
     /// - Throws: An error if adding a query chunk to the session fails.
     @objc public func addQueryChunk(inputText: String) throws {
       try llmSessionRunner.addQueryChunk(inputText: inputText)
+    }
+
+    @objc public func addImage(image: CGImage) throws {
+      try llmSessionRunner.addImage(image: image)
+    }
+
+    @objc public func addAudio(audio: Data) throws {
+      try llmSessionRunner.addAudio(audio: audio)
     }
 
     /// Generates a response based on the previously added query chunks synchronously. Use
@@ -274,6 +285,12 @@ extension LlmInference {
       return llmResponse.humanReadableString(stripLeadingWhitespaces: stripLeadingWhitespaces)
     }
 
+    /// Cancels the current asynchronous response generation.
+    /// - Throws: An error if cancelling the current asynchronous response generation fails.
+    public func cancelGenerateResponseAsync() throws {
+      try llmSessionRunner.cancelGenerateResponseAsync()
+    }
+
   }
 }
 
@@ -301,6 +318,12 @@ extension LlmInference.Session {
     /// The optional absolute path to the LoRA model asset bundle stored locally on the device.
     /// This is only compatible with GPU models.
     @objc public var loraPath: String?
+
+    /// Whether to enable vision modality.
+    @objc public var enableVisionModality: Bool = false
+
+    /// Whether to enable audio modality.
+    @objc public var enableAudioModality: Bool = false
   }
 }
 

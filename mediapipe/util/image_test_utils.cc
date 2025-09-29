@@ -116,6 +116,11 @@ ImageFrame CreateTestRgba8ImageFrame(int width, int height) {
       width, height, /*max_value=*/255.0f);
 }
 
+ImageFrame CreateTestRgb8ImageFrame(int width, int height) {
+  return CreateTestImageFrame<ImageFormat::SRGB, uint8_t>(width, height,
+                                                          /*max_value=*/255.0f);
+}
+
 GpuBuffer CreateTestFloat32GpuBuffer(int width, int height) {
   GpuBuffer buffer(width, height, GpuBufferFormat::kGrayFloat32);
   std::shared_ptr<ImageFrame> view = buffer.GetWriteView<ImageFrame>();
@@ -131,10 +136,32 @@ GpuBuffer CreateTestGrey8GpuBuffer(int width, int height) {
 }
 
 GpuBuffer CreateTestRgba8GpuBuffer(int width, int height) {
-  GpuBuffer buffer(width, height, GpuBufferFormat::kBGRA32);
+  GpuBuffer buffer(width, height, GpuBufferFormat::kRGBA32);
   std::shared_ptr<ImageFrame> view = buffer.GetWriteView<ImageFrame>();
   *view = CreateTestRgba8ImageFrame(width, height);
   return buffer;
+}
+
+GpuBuffer CreateTestRgb8GpuBuffer(int width, int height) {
+  GpuBuffer buffer(width, height, GpuBufferFormat::kRGB24);
+  std::shared_ptr<ImageFrame> view = buffer.GetWriteView<ImageFrame>();
+  *view = CreateTestRgb8ImageFrame(width, height);
+  return buffer;
+}
+
+void FillImageFrameRGBA(ImageFrame& image, uint8_t r, uint8_t g, uint8_t b,
+                        uint8_t a) {
+  auto* data = image.MutablePixelData();
+  for (int y = 0; y < image.Height(); ++y) {
+    auto* row = data + image.WidthStep() * y;
+    for (int x = 0; x < image.Width(); ++x) {
+      auto* pixel = row + x * image.NumberOfChannels();
+      pixel[0] = r;
+      pixel[1] = g;
+      pixel[2] = b;
+      pixel[3] = a;
+    }
+  }
 }
 
 }  // namespace mediapipe

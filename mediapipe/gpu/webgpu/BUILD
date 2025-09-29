@@ -1,5 +1,8 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//mediapipe/framework:mediapipe_cc_test.bzl", "mediapipe_cc_test")
+load("//mediapipe/framework/port:build_config.bzl", "mediapipe_proto_library")
 
 licenses(["notice"])
 
@@ -94,6 +97,14 @@ cc_library(
     name = "webgpu_texture_view",
     hdrs = ["webgpu_texture_view.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//mediapipe/gpu:gpu_buffer_storage",
+    ] + select({
+        "//mediapipe:emscripten": [],
+        "//conditions:default": [
+            "//third_party/dawn:webgpu_headers",
+        ],
+    }),
 )
 
 cc_library(
@@ -120,6 +131,35 @@ cc_library(
     alwayslink = 1,
 )
 
+mediapipe_cc_test(
+    name = "webgpu_texture_buffer_test",
+    size = "small",
+    timeout = "short",
+    srcs = ["webgpu_texture_buffer_test.cc"],
+    browsers = ["//mediapipe/web:chrome-linux-hardware-gpu-webgpu"],
+    jspi = True,
+    platforms = ["wasm"],
+    wasm_tags = [
+        "requires-gpu-nvidia",
+    ],
+    deps = [
+        ":webgpu_service",
+        ":webgpu_texture_buffer",
+        "//mediapipe/framework:calculator_context",
+        "//mediapipe/framework:calculator_state",
+        "//mediapipe/framework:legacy_calculator_support",
+        "//mediapipe/framework/tool:tag_map_helper",
+        "//mediapipe/gpu:gpu_buffer_format",
+        "@com_google_absl//absl/log:absl_check",
+        "@com_google_googletest//:gtest_main",
+    ] + select({
+        "//mediapipe:emscripten": [
+            "//mediapipe/gpu/webgpu:setup_test_webgpu",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
 cc_library(
     name = "webgpu_utils",
     srcs = ["webgpu_utils.cc"],
@@ -129,8 +169,16 @@ cc_library(
         "//mediapipe/framework/port:status",
         "//mediapipe/web:jspi_check",
         "//third_party/dawn:webgpu_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-    ],
+        "@com_google_absl//absl/time",
+    ] + select({
+        "//mediapipe:emscripten": [
+            "//third_party/emdawnwebgpu:webgpu",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
@@ -140,8 +188,52 @@ cc_library(
     deps = [
         ":webgpu_service",
         ":webgpu_texture_view",
+        ":webgpu_utils",
         "//mediapipe/calculators/tensor:image_to_tensor_converter",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework/formats:tensor",
+    ],
+)
+
+cc_library(
+    name = "webgpu_shader_calculator",
+    srcs = ["webgpu_shader_calculator.cc"],
+    hdrs = ["webgpu_shader_calculator.h"],
+    deps = [
+        ":webgpu_service",
+        ":webgpu_shader_calculator_cc_proto",
+        ":webgpu_texture_buffer",
+        ":webgpu_texture_buffer_3d",
+        ":webgpu_texture_view",
+        ":webgpu_utils",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework:calculator_options_cc_proto",
+        "//mediapipe/framework:resources",
+        "//mediapipe/framework/api3:any",
+        "//mediapipe/framework/api3:calculator",
+        "//mediapipe/framework/api3:calculator_context",
+        "//mediapipe/framework/api3:calculator_contract",
+        "//mediapipe/framework/api3:contract",
+        "//mediapipe/framework/api3:node",
+        "//mediapipe/framework/deps:re2",
+        "//mediapipe/framework/port:ret_check",
+        "//mediapipe/framework/port:status",
+        "//mediapipe/gpu:gpu_buffer",
+        "//mediapipe/gpu:gpu_buffer_format",
+        "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+    alwayslink = 1,
+)
+
+mediapipe_proto_library(
+    name = "webgpu_shader_calculator_proto",
+    srcs = ["webgpu_shader_calculator.proto"],
+    deps = [
+        "//mediapipe/framework:calculator_proto",
     ],
 )

@@ -1,3 +1,6 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
@@ -343,7 +346,6 @@ cc_library(
         "//mediapipe/calculators/util:multi_world_landmarks_smoothing_calculator",
         "//mediapipe/calculators/util:visibility_smoothing_calculator",
         "//mediapipe/calculators/util:visibility_smoothing_calculator_cc_proto",
-        "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework/api2:builder",
         "//mediapipe/framework/formats:landmark_cc_proto",
         "//mediapipe/framework/formats:rect_cc_proto",

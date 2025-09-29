@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
+
 package(default_visibility = ["//mediapipe/tasks:internal"])
 
 licenses(["notice"])
@@ -56,7 +58,8 @@ objc_library(
     hdrs = ["sources/MPPTaskInfo.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPTaskOptions",
@@ -77,7 +80,8 @@ objc_library(
     hdrs = ["sources/MPPTextPacketCreator.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         "//mediapipe/framework:packet",
@@ -92,7 +96,8 @@ objc_library(
     hdrs = ["sources/MPPTaskRunner.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPTaskInfo",
@@ -111,7 +116,8 @@ objc_library(
     hdrs = ["sources/MPPPacketCreator.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         "//mediapipe/framework:packet",

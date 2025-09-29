@@ -1,6 +1,7 @@
 #ifndef MEDIAPIPE_UTIL_IMAGE_TEST_UTILS_H_
 #define MEDIAPIPE_UTIL_IMAGE_TEST_UTILS_H_
 
+#include <cstdint>
 #include <string>
 
 #include "mediapipe/framework/formats/image_format.pb.h"
@@ -41,6 +42,9 @@ ImageFrame CreateTestGrey8ImageFrame(int width, int height);
 // Generates 4 channel uint8 RGBA ImageFrame with increasing [0,255] values.
 ImageFrame CreateTestRgba8ImageFrame(int width, int height);
 
+// Generates 3 channel uint8 RGB ImageFrame with increasing [0,255] values.
+ImageFrame CreateTestRgb8ImageFrame(int width, int height);
+
 // Generates single-channel float32 GpuBuffer with increasing [0,1] values.
 GpuBuffer CreateTestFloat32GpuBuffer(int width, int height);
 
@@ -49,6 +53,12 @@ GpuBuffer CreateTestGrey8GpuBuffer(int width, int height);
 
 // Generates 4 channel uint8 RGBA GpuBuffer with increasing [0,255] values.
 GpuBuffer CreateTestRgba8GpuBuffer(int width, int height);
+
+// Generates 3 channel uint8 RGB GpuBuffer with increasing [0,255] values.
+GpuBuffer CreateTestRgb8GpuBuffer(int width, int height);
+
+void FillImageFrameRGBA(ImageFrame& image, uint8_t r, uint8_t g, uint8_t b,
+                        uint8_t a);
 
 }  // namespace mediapipe
 

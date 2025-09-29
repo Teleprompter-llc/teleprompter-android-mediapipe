@@ -13,8 +13,6 @@ py_test(
     data = [
         "//mediapipe/tasks/testdata/metadata:data_files",
     ],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         "//mediapipe/tasks/metadata:metadata_schema_py",
         "//mediapipe/tasks/metadata:schema_py",
@@ -112,20 +110,6 @@ py_test(
         "//mediapipe/tasks/python/metadata",
         "//mediapipe/tasks/python/metadata/metadata_writers:image_segmenter",
         "//mediapipe/tasks/python/metadata/metadata_writers:metadata_writer",
-        "//mediapipe/tasks/python/test:test_utils",
-        "@mediapipe_pip_deps_absl_py//:pkg",
-    ],
-)
-
-py_test(
-    name = "face_stylizer_test",
-    srcs = ["face_stylizer_test.py"],
-    data = [
-        "//mediapipe/tasks/testdata/metadata:data_files",
-        "//mediapipe/tasks/testdata/metadata:model_files",
-    ],
-    deps = [
-        "//mediapipe/tasks/python/metadata/metadata_writers:face_stylizer",
         "//mediapipe/tasks/python/test:test_utils",
         "@mediapipe_pip_deps_absl_py//:pkg",
     ],

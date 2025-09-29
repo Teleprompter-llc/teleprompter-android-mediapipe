@@ -17,8 +17,6 @@
 
 licenses(["notice"])
 
-package(default_visibility = ["//mediapipe:__subpackages__"])
-
 # TODO: Remove the unnecessary test data once the demo data are moved to an open-sourced
 # directory.
 filegroup(
@@ -177,7 +175,6 @@ py_binary(
     name = "gesture_recognizer_demo",
     srcs = ["gesture_recognizer_demo.py"],
     data = [":testdata"],
-    python_version = "PY3",
     tags = ["requires-net:external"],
     deps = [
         ":gesture_recognizer_import",

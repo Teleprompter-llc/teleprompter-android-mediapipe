@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//mediapipe/tasks:internal"])
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 licenses(["notice"])
 
@@ -30,6 +32,14 @@ cc_library(
         "//mediapipe/tasks/cc/text/language_detector",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
+    ],
+)
+
+cc_library(
+    name = "language_detector_c_lib",
+    visibility = ["//mediapipe/tasks/c:__subpackages__"],
+    deps = [
+        ":language_detector_lib",
     ],
     alwayslink = 1,
 )

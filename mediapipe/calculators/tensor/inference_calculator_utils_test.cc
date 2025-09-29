@@ -18,7 +18,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -106,6 +108,61 @@ std::vector<char> TfLiteInputTensorData<char>(const Interpreter& interpreter,
   const tflite::StringRef string_ref = tflite::GetString(tensor, 0);
   std::string str(string_ref.str, string_ref.len);
   return std::vector<char>(str.begin(), str.end());
+}
+
+static absl::StatusOr<int> GetSizeOfType(TfLiteType type) {
+  switch (type) {
+    case kTfLiteFloat16:
+      return sizeof(float) / 2;
+    case kTfLiteFloat32:
+      return sizeof(float);
+    case kTfLiteUInt8:
+      return sizeof(uint8_t);
+    case kTfLiteInt8:
+      return sizeof(int8_t);
+    case kTfLiteInt32:
+      return sizeof(int32_t);
+    case kTfLiteBool:
+      return sizeof(bool);
+    case kTfLiteInt64:
+      return sizeof(int64_t);
+    default:
+      break;
+  }
+  return absl::InvalidArgumentError("Unsupported TfLite type.");
+}
+
+static auto CreateTfLiteTensor(TfLiteType type,
+                               const std::vector<int>& dimensions, float scale,
+                               float zero_point) {
+  auto dealloc = [](TfLiteTensor* tensor) {
+    TfLiteTensorDataFree(tensor);
+    TfLiteIntArrayFree(tensor->dims);
+    delete (tensor);
+  };
+  std::unique_ptr<TfLiteTensor, decltype(dealloc)> tflite_tensor(
+      new TfLiteTensor, dealloc);
+  tflite_tensor->type = type;
+  tflite_tensor->allocation_type = kTfLiteDynamic;
+  tflite_tensor->quantization.type = kTfLiteNoQuantization;
+  TfLiteIntArray* dims = tflite::ConvertVectorToTfLiteIntArray(dimensions);
+  // Scalar input in TensorFlow is described by an empty shape but we still need
+  // to allocate space for it.
+  const int num_elements =
+      dimensions.empty() ? 1
+                         : std::accumulate(dimensions.begin(), dimensions.end(),
+                                           1, std::multiplies<int>());
+  auto size_of_type = GetSizeOfType(type);
+  ABSL_CHECK_OK(size_of_type);
+  tflite_tensor->dims = dims;
+  const int num_bytes = *size_of_type * num_elements;
+  tflite_tensor->params.scale = scale;
+  tflite_tensor->params.zero_point = zero_point;
+
+  tflite_tensor->bytes = 0;
+  tflite_tensor->data.data = nullptr;
+  ABSL_CHECK_EQ(TfLiteTensorRealloc(num_bytes, tflite_tensor.get()), kTfLiteOk);
+  return tflite_tensor;
 }
 
 class InferenceCalculatorUtilsTest : public ::testing::Test {
@@ -395,7 +452,7 @@ TEST_F(InferenceCalculatorUtilsTest,
       CopyTfLiteTensorIntoCpuOutput(*m.GetOutputTensor(0), tensor);
   EXPECT_FALSE(status.ok());
   EXPECT_THAT(status.message(),
-              HasSubstr("Output and TfLiteTensor types do not match"));
+              HasSubstr("MediaPipe and TfLite tensor type do not match"));
 }
 
 TEST_F(InferenceCalculatorUtilsTest,
@@ -550,32 +607,65 @@ TEST_F(InferenceCalculatorUtilsTest, ShouldNotConfirmTfLiteMemoryAlignment) {
                                                    sizeof(int32_t)));
 }
 
+TEST_F(InferenceCalculatorUtilsTest, TensorDimsAndTypeEqualOk) {
+  std::vector<int> dims = {1, 2, 3, 4};
+  Tensor tensor(ElementType::kInt32, Tensor::Shape(dims));
+  auto tflite_tensor =
+      CreateTfLiteTensor(TfLiteType::kTfLiteInt32, dims, /*scale=*/1.0f,
+                         /*zero_point=*/0.0f);
+  MP_EXPECT_OK(TensorDimsAndTypeEqual(tensor, *tflite_tensor));
+}
+
+TEST_F(InferenceCalculatorUtilsTest,
+       TensorDimsAndTypeEqualDiffersInDimensions) {
+  Tensor tensor(ElementType::kInt32, Tensor::Shape({1, 2, 3, 4}));
+  std::vector<int> dims = {1, 2, 3};
+  auto tflite_tensor =
+      CreateTfLiteTensor(TfLiteType::kTfLiteInt32, dims, /*scale=*/1.0f,
+                         /*zero_point=*/0.0f);
+  EXPECT_THAT(TensorDimsAndTypeEqual(tensor, *tflite_tensor).message(),
+              HasSubstr("TfLiteTensor and Tensor shape do not match"));
+}
+
+TEST_F(InferenceCalculatorUtilsTest, TensorDimsAndTypeEqualDiffersInType) {
+  Tensor tensor(ElementType::kInt32, Tensor::Shape({1, 2, 3, 4}));
+  std::vector<int> dims = {1, 2, 3, 4};
+  auto tflite_tensor =
+      CreateTfLiteTensor(TfLiteType::kTfLiteFloat32, dims, /*scale=*/1.0f,
+                         /*zero_point=*/0.0f);
+  EXPECT_THAT(TensorDimsAndTypeEqual(tensor, *tflite_tensor).message(),
+              HasSubstr("MediaPipe and TfLite tensor type do not match"));
+}
+
+TEST_F(InferenceCalculatorUtilsTest, TensorDimsAndTypeEqualDiffersInSize) {
+  Tensor tensor(ElementType::kInt32, Tensor::Shape({1, 2, 3, 4}));
+  std::vector<int> dims = {1, 2, 3, 4};
+  auto tflite_tensor =
+      CreateTfLiteTensor(TfLiteType::kTfLiteInt32, dims, /*scale=*/1.0f,
+                         /*zero_point=*/0.0f);
+  // Override the size to make it different.
+  tflite_tensor->bytes = 100;
+  EXPECT_THAT(TensorDimsAndTypeEqual(tensor, *tflite_tensor).message(),
+              HasSubstr("MediaPipe and TfLite tensor bytes do not match"));
+}
+
+TEST_F(InferenceCalculatorUtilsTest, TensorDimsAndTypeEqualWithScalarInput) {
+  Tensor tensor(ElementType::kInt32, Tensor::Shape({1, 1}));
+  std::vector<int> dims = {};
+  auto tflite_tensor =
+      CreateTfLiteTensor(TfLiteType::kTfLiteInt32, dims, /*scale=*/1.0f,
+                         /*zero_point=*/0.0f);
+  tflite_tensor->bytes = sizeof(int32_t);
+  MP_EXPECT_OK(TensorDimsAndTypeEqual(tensor, *tflite_tensor));
+}
+
 static std::vector<std::pair<TfLiteType, Tensor::ElementType>>
 GetTensorTypePairs() {
-  return {{TfLiteType::kTfLiteFloat16, Tensor::ElementType::kFloat32},
-          {TfLiteType::kTfLiteFloat32, Tensor::ElementType::kFloat32},
+  return {{TfLiteType::kTfLiteFloat32, Tensor::ElementType::kFloat32},
           {TfLiteType::kTfLiteUInt8, Tensor::ElementType::kUInt8},
           {TfLiteType::kTfLiteInt8, Tensor::ElementType::kInt8},
           {TfLiteType::kTfLiteInt32, Tensor::ElementType::kInt32},
           {TfLiteType::kTfLiteBool, Tensor::ElementType::kBool}};
-}
-
-static auto CreateTfLiteTensor(TfLiteType type, int num_elements, float scale,
-                               float zero_point) {
-  auto dealloc = [](TfLiteTensor* tensor) {
-    TfLiteIntArrayFree(tensor->dims);
-    delete (tensor);
-  };
-  std::unique_ptr<TfLiteTensor, decltype(dealloc)> tflite_tensor(
-      new TfLiteTensor, dealloc);
-  tflite_tensor->type = type;
-  tflite_tensor->allocation_type = kTfLiteDynamic;
-  tflite_tensor->quantization.type = kTfLiteNoQuantization;
-  TfLiteIntArray* dims = tflite::ConvertVectorToTfLiteIntArray({num_elements});
-  tflite_tensor->dims = dims;
-  tflite_tensor->params.scale = scale;
-  tflite_tensor->params.zero_point = zero_point;
-  return tflite_tensor;
 }
 
 class AllocateTensorWithTfLiteTensorSpecsTest
@@ -586,7 +676,7 @@ TEST_P(AllocateTensorWithTfLiteTensorSpecsTest,
        ShouldAllocateTensorWithTfLiteTensorSpecs) {
   const auto& config = GetParam();
   const auto tflite_tensor =
-      CreateTfLiteTensor(config.first, /*num_elements=*/4,
+      CreateTfLiteTensor(config.first, std::vector<int>({4}),
                          /*scale=*/2.0f, /*zero_point=*/3.0f);
   MP_ASSERT_OK_AND_ASSIGN(Tensor mp_tensor,
                           CreateTensorWithTfLiteTensorSpecs(
@@ -597,6 +687,69 @@ TEST_P(AllocateTensorWithTfLiteTensorSpecsTest,
   if (config.first != TfLiteType::kTfLiteBool) {
     EXPECT_FLOAT_EQ(mp_tensor.quantization_parameters().scale, 2.0f);
     EXPECT_FLOAT_EQ(mp_tensor.quantization_parameters().zero_point, 3.0f);
+  }
+}
+
+TEST_P(AllocateTensorWithTfLiteTensorSpecsTest,
+       ShouldAllocateTensorWithTfLiteTensorSpecsForScalarInput) {
+  const auto& config = GetParam();
+  auto tflite_tensor = CreateTfLiteTensor(config.first, std::vector<int>(),
+                                          /*scale=*/2.0f, /*zero_point=*/3.0f);
+
+  MP_ASSERT_OK_AND_ASSIGN(Tensor mp_tensor,
+                          CreateTensorWithTfLiteTensorSpecs(
+                              *tflite_tensor, /*memory_manager=*/nullptr,
+                              tflite::kDefaultTensorAlignment));
+  EXPECT_EQ(mp_tensor.element_type(), config.second);
+  EXPECT_EQ(mp_tensor.shape().num_elements(), 1);
+  EXPECT_EQ(mp_tensor.bytes(), tflite_tensor->bytes);
+
+  if (config.first != TfLiteType::kTfLiteBool) {
+    EXPECT_FLOAT_EQ(mp_tensor.quantization_parameters().scale, 2.0f);
+    EXPECT_FLOAT_EQ(mp_tensor.quantization_parameters().zero_point, 3.0f);
+  }
+}
+
+TEST_P(AllocateTensorWithTfLiteTensorSpecsTest,
+       ShouldCopyCpuInputIntoTfLiteTensorForScalarInput) {
+  const auto& config = GetParam();
+  Tensor tensor(config.second, Tensor::Shape({1}));
+  {
+    auto write_view = tensor.GetCpuWriteView();
+    const int num_bytes = tensor.bytes();
+    for (int i = 0; i < num_bytes; ++i) {
+      write_view.buffer<char>()[i] = i;
+    }
+  }
+  std::vector<int> dims = {};
+  auto tflite_tensor = CreateTfLiteTensor(config.first, dims, /*scale=*/1.0f,
+                                          /*zero_point=*/0.0f);
+  MP_EXPECT_OK(CopyCpuInputIntoTfLiteTensor(tensor, *tflite_tensor));
+
+  for (int i = 0; i < tflite_tensor->bytes; ++i) {
+    EXPECT_EQ(tflite_tensor->data.raw[i], i);
+  }
+}
+
+TEST_P(AllocateTensorWithTfLiteTensorSpecsTest,
+       ShouldConvertTfLiteTensorToTensorForScalarOutput) {
+  const auto& config = GetParam();
+  std::vector<int> dims = {};
+  auto tflite_tensor = CreateTfLiteTensor(config.first, dims, /*scale=*/1.0f,
+                                          /*zero_point=*/0.0f);
+  for (int i = 0; i < tflite_tensor->bytes; ++i) {
+    tflite_tensor->data.raw[i] = i;
+  }
+  MP_ASSERT_OK_AND_ASSIGN(Tensor tensor,
+                          ConvertTfLiteTensorToTensor(*tflite_tensor));
+  EXPECT_EQ(tensor.bytes(), tflite_tensor->bytes);
+  EXPECT_EQ(tensor.element_type(), config.second);
+  EXPECT_EQ(tensor.shape().num_elements(), 1);
+  {
+    auto read_view = tensor.GetCpuReadView();
+    for (int i = 0; i < tensor.bytes(); ++i) {
+      EXPECT_EQ(read_view.buffer<char>()[i], i);
+    }
   }
 }
 

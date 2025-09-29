@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
@@ -22,7 +24,8 @@ objc_library(
     hdrs = ["sources/MPPAudioData.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPAudioDataFormat",
@@ -58,7 +61,8 @@ objc_library(
     hdrs = ["sources/MPPFloatRingBuffer.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPFloatBuffer",
@@ -74,7 +78,8 @@ objc_library(
     hdrs = ["sources/MPPAudioRecord.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPAudioDataFormat",
@@ -93,7 +98,8 @@ objc_library(
     hdrs = ["sources/MPPAudioPacketCreator.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPAudioData",
@@ -118,7 +124,8 @@ objc_library(
     hdrs = ["sources/MPPAudioTaskRunner.h"],
     copts = [
         "-ObjC++",
-        "-std=c++17",
+        "-std=c++20",
+        "-Xclang=-fno-cxx-modules",
     ],
     deps = [
         ":MPPAudioData",

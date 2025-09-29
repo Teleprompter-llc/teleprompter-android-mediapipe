@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@bazel_skylib//lib:selects.bzl", "selects")  # buildifier: disable=out-of-order-load
 load("//mediapipe/gpu:metal.bzl", "metal_library")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_unit_test")
@@ -248,7 +251,8 @@ cc_library(
         ],
         "//mediapipe:ios": [
         ],
-        "//mediapipe:emscripten": [],
+        "//mediapipe:emscripten": [
+        ],
         "//mediapipe:macos": [
         ],
     }),
@@ -435,6 +439,7 @@ mediapipe_cc_test(
     timeout = "long",
     srcs = ["gpu_buffer_storage_cv_pixel_buffer_test.cc"],
     platforms = ["ios"],
+    test_host = None,
     deps = [
         ":gl_texture_buffer",
         ":gl_texture_util",
@@ -665,6 +670,34 @@ cc_library(
         "@google_toolbox_for_mac//:GTM_Defines",
     ],
     alwayslink = 1,
+)
+
+cc_library(
+    name = "gl_app_texture_support",
+    srcs = ["gl_app_texture_support.cc"],
+    hdrs = ["gl_app_texture_support.h"],
+    copts = select({
+        "//conditions:default": [],
+        "//mediapipe:macos": [
+            "-Wno-shorten-64-to-32",
+        ],
+    }),
+    deps = [
+        ":gl_base",
+        ":gl_context",
+        ":gl_texture_buffer",
+        ":gpu_buffer",
+        ":gpu_buffer_format",
+        ":gpu_shared_data_header",
+        ":multi_pool",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework:calculator_graph",
+        "//mediapipe/framework:executor",
+        "//mediapipe/framework/port:ret_check",
+        "//mediapipe/framework/port:status",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )
 
 mediapipe_proto_library(
@@ -1007,6 +1040,7 @@ cc_library(
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
     ] + select({
@@ -1090,19 +1124,58 @@ cc_library(
 cc_library(
     name = "gpu_buffer_to_image_frame_calculator",
     srcs = ["gpu_buffer_to_image_frame_calculator.cc"],
+    hdrs = ["gpu_buffer_to_image_frame_calculator.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":gl_calculator_helper",
+        ":gpu_buffer",
+        ":gpu_buffer_format",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework:timestamp",
+        "//mediapipe/framework/api3:calculator",
+        "//mediapipe/framework/api3:calculator_context",
+        "//mediapipe/framework/api3:calculator_contract",
+        "//mediapipe/framework/api3:contract",
+        "//mediapipe/framework/api3:node",
+        "//mediapipe/framework/api3:one_of",
         "//mediapipe/framework/formats:image_frame",
         "//mediapipe/framework/port:ret_check",
         "//mediapipe/framework/port:status",
+        "@com_google_absl//absl/status",
     ] + select({
         "//conditions:default": [],
         "//mediapipe:apple": ["//mediapipe/objc:util"],
     }),
     alwayslink = 1,
+)
+
+mediapipe_cc_test(
+    name = "gpu_buffer_to_image_frame_calculator_test",
+    size = "small",
+    timeout = "long",
+    srcs = ["gpu_buffer_to_image_frame_calculator_test.cc"],
+    tags = [
+        "noasan",  # TODO: Remove noasan tag when SwiftShader supports sanitizers
+    ],
+    test_host = None,
+    deps = [
+        ":gl_texture_util",
+        ":gl_texture_view",
+        ":gpu_buffer",
+        ":gpu_buffer_format",
+        ":gpu_buffer_to_image_frame_calculator",
+        ":gpu_service",
+        ":gpu_test_base",
+        "//mediapipe/framework/api3:function_runner",
+        "//mediapipe/framework/api3:graph",
+        "//mediapipe/framework/api3:packet",
+        "//mediapipe/framework/api3:stream",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/port:gtest_main",
+        "//mediapipe/framework/tool:test_util",
+        "//mediapipe/util:image_test_utils",
+        "@com_google_absl//absl/status",
+    ],
 )
 
 cc_library(
@@ -1164,6 +1237,77 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
     ],
     alwayslink = 1,
+)
+
+mediapipe_proto_library(
+    name = "gl_shader_calculator_proto",
+    srcs = ["gl_shader_calculator.proto"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//mediapipe/framework:calculator_options_proto",
+        "//mediapipe/framework:calculator_proto",
+    ],
+)
+
+cc_library(
+    name = "gl_shader_calculator",
+    srcs = ["gl_shader_calculator.cc"],
+    deps = [
+        ":gl_shader_calculator_cc_proto",
+        "//mediapipe/framework:calculator_context",
+        "//mediapipe/framework:calculator_contract",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework:calculator_options_cc_proto",
+        "//mediapipe/framework:timestamp",
+        "//mediapipe/framework/api2:node",
+        "//mediapipe/framework/api2:packet",
+        "//mediapipe/framework/api2:port",
+        "//mediapipe/framework/port:ret_check",
+        "//mediapipe/framework/port:status",
+        "//mediapipe/gpu:gl_calculator_helper",
+        "//mediapipe/gpu:gl_simple_shaders",
+        "//mediapipe/gpu:gpu_buffer",
+        "//mediapipe/gpu:gpu_buffer_format",
+        "//mediapipe/gpu:shader_util",
+        "//mediapipe/util:resource_util",
+        "//third_party/GL:GLES2_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+    ],
+    alwayslink = 1,
+)
+
+cc_test(
+    name = "gl_shader_calculator_test",
+    size = "small",
+    timeout = "moderate",
+    srcs = ["gl_shader_calculator_test.cc"],
+    data = [
+        ":testdata/googlelogo_color_272x92dp.png",
+    ] + glob(["testdata/scuba_goldens/*.png"]),
+    deps = [
+        ":gl_shader_calculator",
+        ":gl_shader_calculator_cc_proto",
+        "//mediapipe/framework:calculator_cc_proto",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework/api2:builder",
+        "//mediapipe/framework/api2:packet",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/port:gtest",
+        "//mediapipe/framework/port:status",
+        "//mediapipe/framework/tool:test_util",
+        "//mediapipe/gpu:gl_simple_shaders",
+        "//mediapipe/gpu:gpu_buffer_to_image_frame_calculator",
+        "//mediapipe/gpu:image_frame_to_gpu_buffer_calculator",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -1290,7 +1434,6 @@ objc_library(
 objc_library(
     name = "mps_sobel_calculator",
     srcs = ["MPSSobelCalculator.mm"],
-    copts = ["-std=c++17"],
     features = ["-layering_check"],
     visibility = ["//visibility:public"],
     deps = [
@@ -1355,7 +1498,6 @@ objc_library(
         "//mediapipe/objc:mediapipe_framework_ios",
         "@com_google_absl//absl/memory",
     ] + select({
-        "//mediapipe:ios_i386": [],
         "//mediapipe:ios_x86_64": [],
         "//conditions:default": [
             ":metal_rgb_weight_calculator",
@@ -1392,6 +1534,7 @@ mediapipe_cc_test(
         ":gl_texture_util",
         ":gl_texture_view",
         ":gpu_buffer_format",
+        ":gpu_buffer_storage",
         ":gpu_buffer_storage_ahwb",
         ":gpu_test_base",
         "//mediapipe/framework:port",
@@ -1405,6 +1548,7 @@ mediapipe_cc_test(
         "//mediapipe/util:sync_wait",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/time",
+        "@com_google_googletest//:gtest",
     ],
 )
 
