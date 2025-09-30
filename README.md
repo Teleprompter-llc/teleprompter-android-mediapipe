@@ -80,9 +80,130 @@ manual steps.
 [MediaPipe]: https://google.github.io/mediapipe/
 [build an AAR]: https://google.github.io/mediapipe/getting_started/android_archive_library.html
 
+# 16KB Page Size Support
 
+## Google Play Requirement
 
+**Important:** Starting **November 1st, 2025**, all new apps and updates to existing apps submitted to Google Play targeting Android 15 (API level 35) and higher **must support 16 KB page sizes on 64-bit devices**.
 
+## Why 16KB Page Size?
+
+Historically, Android has only supported 4 KB memory page sizes. Beginning with Android 15, AOSP supports devices configured to use 16 KB page sizes. As device manufacturers build devices with larger amounts of physical memory (RAM), many will adopt 16 KB page sizes to optimize device performance.
+
+### Performance Benefits
+
+Devices configured with 16 KB page sizes gain various performance improvements:
+
+- **3.16% lower app launch times** under memory pressure (up to 30% for some apps)
+- **4.56% reduction in power draw** during app launch
+- **4.48% faster camera hot starts** (6.60% faster cold starts)
+- **8% improved system boot time** (~950ms faster on average)
+
+## Building MediaPipe with 16KB Support
+
+### Prerequisites
+
+To build with 16 KB page size support, you need:
+
+- **Android NDK r28+** (automatically builds with 16 KB alignment)
+- **Android Gradle Plugin 8.5.1+**
+- **Gradle 8.4+**
+- **Target SDK 35+**
+
+### Updated Build Command
+
+When building the MediaPipe AAR, add the 16 KB alignment linker flag:
+
+```sh
+cd ${MEDIAPIPE_ROOT}
+export HERMETIC_PYTHON_VERSION=3.11
+bazel build -c opt --strip=ALWAYS \
+  --host_crosstool_top=@bazel_tools//tools/cpp:toolchain \
+  --fat_apk_cpu=arm64-v8a,armeabi-v7a \
+  --legacy_whole_archive=0 \
+  --features=-legacy_whole_archive \
+  --copt=-fvisibility=hidden \
+  --copt=-ffunction-sections \
+  --copt=-fdata-sections \
+  --copt=-fstack-protector \
+  --copt=-Oz \
+  --copt=-fomit-frame-pointer \
+  --copt=-DABSL_MIN_LOG_LEVEL=2 \
+  --linkopt=-Wl,--gc-sections,--strip-all \
+  --linkopt='-Wl,-z,max-page-size=16384' \
+  mediapipe/java/com/google/mediapipe/transformer:selfie_segmentation_gpu_aar.aar
+```
+
+**Note:** The key addition is `--linkopt='-Wl,-z,max-page-size=16384'` which ensures 16 KB alignment.
+
+### MediaPipe 16KB Updates
+
+MediaPipe has been updated to support 16 KB page sizes natively. The project now uses Android SDK and NDK 28, which builds with 16 KB alignment by default. See the [MediaPipe 16KB update commit](https://github.com/google-ai-edge/mediapipe/commit/6795b5ce0762eb9238a22a6ec392f0ba95f2b485) for implementation details.
+
+## TensorFlow Lite Compatibility
+
+If your project uses TensorFlow Lite, be aware that TensorFlow Lite 2.17.0's pre-built native libraries are compiled with 4 KB page size alignment. The recommended solution is to migrate to **LiteRT (formerly TensorFlow Lite) version 1.4.0+**, which provides native 16 KB page size compatibility.
+
+## Testing Your App for 16KB Compatibility
+
+### Verify APK Alignment
+
+After building your app, verify it's 16 KB-aligned:
+
+```sh
+zipalign -c -P 16 -v 4 your_app.apk
+```
+
+### Test on 16KB Environment
+
+Verify your test device is using 16 KB pages:
+
+```sh
+adb shell getconf PAGE_SIZE
+# Should return: 16384
+```
+
+### Android Emulator Setup
+
+1. Use **Android Studio Ladybug | 2024.2.1+** for the best experience
+2. In **Tools > SDK Manager > SDK Platforms**, check **Show Package Details**
+3. Expand **Android VanillaIceCream** or higher and download:
+   - **Google APIs Experimental 16 KB Page Size ARM 64 v8a System Image**
+   - **Google APIs Experimental 16 KB Page Size Intel x86_64 Atom System Image**
+4. Create a new AVD using one of these 16 KB system images
+
+### Physical Device Testing
+
+Enable **"Boot with 16KB page size"** in Developer Options on supported devices:
+
+- **Pixel 8, 8 Pro, 8a** (Android 15 QPR1+)
+- **Pixel 9, 9 Pro, 9 Pro XL** (Android 15 QPR2 Beta 2+)
+
+### Check Native Libraries
+
+Use APK Analyzer in Android Studio to identify native libraries:
+
+1. **File > Open** any project
+2. **Build > Analyze APK...**
+3. Check the **lib** folder for `.so` files
+4. Review the **Alignment** column for warnings
+
+For command-line verification of shared object files:
+
+```sh
+# Linux/macOS
+$SDK_ROOT/Android/sdk/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objdump -p libname.so | grep LOAD
+
+# Check for alignment value 0x4000 (16KB) instead of 0x1000 (4KB)
+```
+
+## Additional Resources
+
+- [Android Developer Guide: Support 16 KB Page Sizes](https://developer.android.com/guide/practices/page-sizes)
+- [TensorFlow Lite and 16 KB Page Size Support Discussion](https://discuss.ai.google.dev/t/tensorflow-lite-and-16-kb-page-size-support/93052/3)
+- [FFmpeg Kit 16 KB Page Size Implementation](https://proandroiddev.com/ffmpeg-kit-16-kb-page-size-in-android-d522adc5efa2)
+- [Android NDK r28 Release Builds](https://ci.android.com/builds/branches/aosp-ndk-r28-release/grid?legacy=1)
+- [MediaPipe 16 KB Support Commit](https://github.com/google-ai-edge/mediapipe/commit/6795b5ce0762eb9238a22a6ec392f0ba95f2b485)
 
 ---
 layout: forward
