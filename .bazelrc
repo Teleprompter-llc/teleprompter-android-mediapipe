@@ -7,7 +7,7 @@ common --experimental_repo_remote_exec
 common --noenable_bzlmod
 
 # Turn off toolchain resolution for cc rules and android rules.
-common --noincompatible_enable_cc_toolchain_resolution
+# Note: We selectively enable Apple CC toolchain for Apple targets
 common --noincompatible_enable_android_toolchain_resolution
 
 # Basic build settings

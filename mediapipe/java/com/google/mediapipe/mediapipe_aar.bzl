@@ -124,7 +124,7 @@ EOF
         "@maven//:com_google_code_findbugs_jsr305",
         "@maven//:com_google_flogger_flogger",
         "@maven//:com_google_flogger_flogger_system_backend",
-        "//java/com/google/common/base",
+        "@maven//:com_google_guava_guava",
         "@maven//:androidx_lifecycle_lifecycle_common",
     ] + select({
         "//conditions:default": [],

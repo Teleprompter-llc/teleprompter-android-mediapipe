@@ -8,3 +8,5 @@ node_modules/
 .aider*
 .vscode/settings.json
 mediapipe/java/com/google/mediapipe/.DS_Store
+
+.claude/
